@@ -1,4 +1,4 @@
 {
-  "version": "8.4.3",
-  "message": "Pulse 8.4.3 fixes the black startup screen and keeps the login page hidden until Firebase finishes checking the session."
+  "version": "8.4.5",
+  "message": "Pulse 8.4.5 includes a hard fix for mobile-number user discovery."
 }
