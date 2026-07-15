@@ -1,12 +1,14 @@
-# Pulse v8.1 BETA — File Card Fix
+# Pulse v8.2 BETA — Immediate Download Fix
 
-Fixes the recipient seeing only "Shared a file".
+Fixes the recipient needing to close and reopen Pulse before the received file is saved through the browser download flow.
 
-Changes:
-- File messages no longer display the generic text as the main message body.
-- When filePath metadata exists, Pulse renders the exact file card with filename, size and Download securely.
-- Old/malformed file messages without file metadata show a clear cached-build warning.
-- Service-worker cache bumped to v14.
+New flow:
+1. Download encrypted file from Supabase.
+2. Decrypt locally.
+3. Verify SHA-256.
+4. Save to Pulse IndexedDB.
+5. Immediately trigger the browser/device download for the original filename.
+6. Delete the temporary Supabase object.
+7. Keep the IndexedDB copy available as Open / Save to device.
 
-Important:
-Both sender and recipient must update to this build. Files already sent from a stale/older cached build without file metadata cannot be reconstructed; send those files again after updating.
+Both sender and recipient should update to this build. Service-worker cache version is v15.
