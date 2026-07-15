@@ -1,4 +1,4 @@
 {
-  "version": "8.5.1",
-  "message": "Pulse 8.5.1 restores the dark-only theme and fixes selecting archived chats to unarchive them."
+  "version": "8.5.2",
+  "message": "Pulse 8.5.2 removes Archive and Unarchive and fixes chat Pin and Unpin behaviour."
 }
