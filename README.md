@@ -1,14 +1,18 @@
-# Pulse v8.5.2 BETA — Pin Fix / No Archive
+# Pulse v8.5.4 BETA — Firebase Session Splash
 
-Changes:
-- Removed Archive and Unarchive from chat selection.
-- Removed the Archived section from the Chats screen.
-- Fixed Pin so selected chats are added to the pinned list reliably.
-- Pinned chats are always sorted above normal chats.
-- Select an already pinned chat and the action changes from Pin to Unpin.
-- Selecting a mix of pinned and normal chats shows Pin and pins all selected chats.
-- Delete selection no longer changes archive state.
-- Previous chats remain in the main chat list.
+Adds a clean, non-animated Pulse splash screen only while Firebase Authentication restores the user's login session.
 
-Version: 8.5.2
-Service-worker cache: v26
+Flow:
+1. Pulse opens.
+2. The pre-auth gate is active.
+3. Pulse logo, Pulse BETA, and "Restoring your session…" are shown.
+4. Firebase onAuthStateChanged resolves.
+5. Pulse selects Home, Login, Verify Email, or Profile Setup.
+6. resolveAuthGate removes the pending state and the splash disappears.
+
+The login page remains hidden while session restoration is pending.
+
+Version: 8.5.4
+Service-worker cache: v28
+
+No Firebase rules or Supabase SQL changes are required.

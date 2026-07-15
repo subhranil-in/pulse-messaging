@@ -1,4 +1,4 @@
 {
-  "version": "8.5.2",
-  "message": "Pulse 8.5.2 removes Archive and Unarchive and fixes chat Pin and Unpin behaviour."
+  "version": "8.5.4",
+  "message": "Pulse 8.5.4 adds a clean session-restoration splash screen while Firebase restores the user's login state."
 }
