@@ -1,4 +1,4 @@
 {
-  "version": "8.4.5",
-  "message": "Pulse 8.4.5 includes a hard fix for mobile-number user discovery."
+  "version": "8.4.6",
+  "message": "Pulse 8.4.6 fixes the chat selection JavaScript error and keeps the phone search fix."
 }

@@ -1,16 +1,10 @@
-# Pulse v8.4.5 BETA — Phone Search Hard Fix
+# Pulse v8.4.6 BETA — Chat Selection Error Fix
 
-The earlier fix still depended on several exact Firestore phone queries before its fallback. v8.4.5 now reads the allowed Pulse user profiles and compares normalized phone digits directly in the app.
+Fixes `chatSelectionMode is not defined` by restoring the missing top-level UI state declarations.
 
-It matches:
-+91 9876543210
-+919876543210
-919876543210
-09876543210
-9876543210
+Keeps the v8.4.5 phone search hard fix and previous Pulse features.
 
-The search now also gives a specific message if Firestore profile reads are denied.
+Version: 8.4.6
+Service-worker cache: v23
 
-Important: publish the included firestore.rules if Pulse says it cannot read user profiles.
-
-Version 8.4.5; service-worker cache v22.
+No Supabase SQL or Firestore rules change is required specifically for this JavaScript fix.
