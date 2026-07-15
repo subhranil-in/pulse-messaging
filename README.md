@@ -1,14 +1,14 @@
-# Pulse v8.2 BETA — Immediate Download Fix
+# Pulse v8.3 BETA — Password Reset + Update System
 
-Fixes the recipient needing to close and reopen Pulse before the received file is saved through the browser download flow.
+New:
+- Forgot password button on sign-in.
+- Firebase password-reset email flow.
+- Automatic version check after Pulse opens.
+- iOS-style update popup when version.json contains a newer version.
+- Settings > Check for updates.
+- Update now refreshes the service worker, clears old Pulse caches and reloads.
 
-New flow:
-1. Download encrypted file from Supabase.
-2. Decrypt locally.
-3. Verify SHA-256.
-4. Save to Pulse IndexedDB.
-5. Immediately trigger the browser/device download for the original filename.
-6. Delete the temporary Supabase object.
-7. Keep the IndexedDB copy available as Open / Save to device.
+How future update alerts work:
+Each release has PULSE_VERSION in app.js and a version in version.json. Publish a newer build with a higher version.json version. Older Pulse clients fetch version.json with no-store and show the update popup.
 
-Both sender and recipient should update to this build. Service-worker cache version is v15.
+Service-worker cache: v16.
