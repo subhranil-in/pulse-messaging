@@ -1,14 +1,13 @@
-# Pulse v8.3 BETA — Password Reset + Update System
+# Pulse v8.4 BETA
 
-New:
-- Forgot password button on sign-in.
-- Firebase password-reset email flow.
-- Automatic version check after Pulse opens.
-- iOS-style update popup when version.json contains a newer version.
-- Settings > Check for updates.
-- Update now refreshes the service worker, clears old Pulse caches and reloads.
+New in v8.4:
+- Animated Pulse splash screen.
+- Select chats from the home screen using the ✓ button or long-press a chat.
+- Pin/unpin selected chats.
+- Archive selected chats and open the Archived section.
+- Delete selected chats from this device without deleting the other person's copy.
+- Smoother keyed message rendering to stop full chat-screen redraw/flash on live snapshots.
+- Full Unicode emoji picker powered by emoji-picker-element, with search, categories and the emoji set supported by the user's browser/OS.
+- Version bumped to 8.4.0 and service-worker cache to v17.
 
-How future update alerts work:
-Each release has PULSE_VERSION in app.js and a version in version.json. Publish a newer build with a higher version.json version. Older Pulse clients fetch version.json with no-store and show the update popup.
-
-Service-worker cache: v16.
+No Supabase SQL or Firestore rule change is required for this UI release.
