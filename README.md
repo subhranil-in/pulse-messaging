@@ -1,10 +1,7 @@
-# Pulse v8.4.6 BETA — Chat Selection Error Fix
+# Pulse v8.5 BETA
 
-Fixes `chatSelectionMode is not defined` by restoring the missing top-level UI state declarations.
+Adds unarchive, resized local-friendly profile photos stored with the Pulse profile, Home theme cycling (System → Light → Dark), read ticks that become double only after visible-chat read processing, and a long-press message action sheet with quick reactions, Reply, Star, Forward, Delete for me, Delete for everyone (sender only), and Cancel.
 
-Keeps the v8.4.5 phone search hard fix and previous Pulse features.
+Delete for me is local to the current browser/device. Forward currently forwards text and shared links; temporary encrypted file payloads are not re-uploaded automatically.
 
-Version: 8.4.6
-Service-worker cache: v23
-
-No Supabase SQL or Firestore rules change is required specifically for this JavaScript fix.
+Version 8.5.0. Service-worker cache v24.
