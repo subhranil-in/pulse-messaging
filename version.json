@@ -1,4 +1,4 @@
 {
-  "version": "8.4.1",
-  "message": "Pulse 8.4.1 removes the splash animation, prevents the login screen from flashing during startup, and restores previous Firestore chats after updating."
+  "version": "8.4.2",
+  "message": "Pulse 8.4.2 improves the update system with one-time update alerts and visible update progress."
 }
