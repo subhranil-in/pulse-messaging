@@ -1,13 +1,12 @@
-# Pulse v8.4 BETA
+# Pulse v8.4.1 BETA — Clean Startup + Chat Restore
 
-New in v8.4:
-- Animated Pulse splash screen.
-- Select chats from the home screen using the ✓ button or long-press a chat.
-- Pin/unpin selected chats.
-- Archive selected chats and open the Archived section.
-- Delete selected chats from this device without deleting the other person's copy.
-- Smoother keyed message rendering to stop full chat-screen redraw/flash on live snapshots.
-- Full Unicode emoji picker powered by emoji-picker-element, with search, categories and the emoji set supported by the user's browser/OS.
-- Version bumped to 8.4.0 and service-worker cache to v17.
+Changes:
+- Removed the animated splash screen.
+- Added a plain black boot cover only while Firebase Authentication restores the session.
+- The login page is not revealed before Firebase finishes checking the signed-in user.
+- Previous Firestore chats are restored after updating.
+- A one-time v8.4.1 migration clears the local deletedChats hiding list so older chats can return from Firestore.
+- Existing pinned, archived, muted, blocked, starred and other preferences remain.
+- Version 8.4.1; service-worker cache v18.
 
-No Supabase SQL or Firestore rule change is required for this UI release.
+No Supabase SQL or Firestore rule change is required.

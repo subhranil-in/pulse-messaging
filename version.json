@@ -1,4 +1,4 @@
 {
-  "version": "8.4.0",
-  "message": "Pulse 8.4 adds animated launch, chat selection, pin/archive/delete tools, smoother live messages and a full emoji picker."
+  "version": "8.4.1",
+  "message": "Pulse 8.4.1 removes the splash animation, prevents the login screen from flashing during startup, and restores previous Firestore chats after updating."
 }
