@@ -1,4 +1,4 @@
 {
-  "version": "8.5.0",
-  "message": "Pulse 8.5 adds unarchive, profile photos, quick themes, accurate read ticks and a WhatsApp-style long-press message menu."
+  "version": "8.5.1",
+  "message": "Pulse 8.5.1 restores the dark-only theme and fixes selecting archived chats to unarchive them."
 }
