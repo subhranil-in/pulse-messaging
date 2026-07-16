@@ -1,4 +1,4 @@
 {
-  "version": "8.5.4",
-  "message": "Pulse 8.5.4 adds a clean session-restoration splash screen while Firebase restores the user's login state."
+  "version": "8.6.1",
+  "message": "Pulse 8.6.1 adds editable username and about in Settings."
 }

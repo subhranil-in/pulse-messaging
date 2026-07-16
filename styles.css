@@ -76,3 +76,5 @@ html.pulse-auth-pending .authSplash{display:flex!important}
 .authSplash>b{font-size:27px;letter-spacing:-.7px;margin-top:17px}
 .authSplash>span{font-size:10px;font-weight:900;letter-spacing:1.8px;color:#8e8e93;margin-top:4px}
 .authSplash>small{position:absolute;bottom:max(42px,env(safe-area-inset-bottom));color:#8e8e93;font-size:12px}
+
+.profileEditCard{display:grid;gap:10px}.profileEditInput,.profileEditTextarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:#fff;padding:13px 14px;border-radius:12px;outline:0;font:inherit}.profileEditTextarea{min-height:86px;resize:vertical}.profileEditHint,.settingTitle small{color:var(--muted)}.profileEditCard .settingButton{margin-top:2px}
