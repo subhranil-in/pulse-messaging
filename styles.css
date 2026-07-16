@@ -77,14 +77,18 @@ html.pulse-auth-pending .authSplash{display:flex!important}
 .authSplash>span{font-size:10px;font-weight:900;letter-spacing:1.8px;color:#8e8e93;margin-top:4px}
 .authSplash>small{position:absolute;bottom:max(42px,env(safe-area-inset-bottom));color:#8e8e93;font-size:12px}
 
-.profileEditCard{display:grid;gap:10px}.profileEditInput,.profileEditTextarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:#fff;padding:13px 14px;border-radius:12px;outline:0;font:inherit}.profileEditTextarea{min-height:86px;resize:vertical}.profileEditHint,.settingTitle small{color:var(--muted)}.profileEditCard .settingButton{margin-top:2px}
+.profileEditInput,.profileEditTextarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:#fff;padding:13px 14px;border-radius:12px;outline:0;font:inherit}.profileEditTextarea{min-height:86px;resize:vertical}.profileEditHint,.settingTitle small{color:var(--muted)}
 
-
-.profileCard{gap:14px}
-.settingProfileRow{display:flex;align-items:center;gap:10px}
-.profileEditor{display:grid;gap:10px;padding-top:2px}
-.profileEditInput,.profileEditTextarea{width:100%;border:1px solid rgba(255,255,255,.08);background:#202023;color:#fff;border-radius:14px;padding:14px;outline:0}
-.profileEditTextarea{min-height:92px;resize:vertical}
-.profileEditActions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.profileEditActions .settingButton{margin-top:0}
-#editProfileToggle{min-width:72px}
+.profileCardTitle{align-items:center;margin-bottom:10px}
+.profileCard .settingTitle{margin-bottom:0}
+.profileView{display:block;margin-bottom:10px}
+.profileTop{display:flex;gap:12px;align-items:center}
+.profileAvatar{width:64px;height:64px;flex:0 0 auto}
+.profileMeta b{display:block;font-size:18px;margin-bottom:4px}
+.profileMeta p{margin:0 0 3px;color:var(--muted);line-height:1.45}
+.profileEditPanel{display:grid;gap:10px;margin-top:12px}
+.profileEditActions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.settingButton.secondary{background:var(--panel2);color:#fff}
+.profilePhotoEdit{margin:2px 0 4px;justify-items:center;text-align:center}
+.profilePhotoEdit span{width:90px;height:90px}
+.profilePhotoEdit b{margin-top:4px}
