@@ -1,4 +1,4 @@
 {
-  "version": "8.6.5",
-  "message": "Pulse 8.6.5 fixes inline profile editing and forgot password handling."
+  "version": "8.6.6",
+  "message": "Pulse 8.6.6 fixes the inline profile editor, forgot password, and verification reminder."
 }
