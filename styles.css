@@ -78,3 +78,13 @@ html.pulse-auth-pending .authSplash{display:flex!important}
 .authSplash>small{position:absolute;bottom:max(42px,env(safe-area-inset-bottom));color:#8e8e93;font-size:12px}
 
 .profileEditCard{display:grid;gap:10px}.profileEditInput,.profileEditTextarea{width:100%;background:var(--panel2);border:1px solid var(--line);color:#fff;padding:13px 14px;border-radius:12px;outline:0;font:inherit}.profileEditTextarea{min-height:86px;resize:vertical}.profileEditHint,.settingTitle small{color:var(--muted)}.profileEditCard .settingButton{margin-top:2px}
+
+
+.profileCard{gap:14px}
+.settingProfileRow{display:flex;align-items:center;gap:10px}
+.profileEditor{display:grid;gap:10px;padding-top:2px}
+.profileEditInput,.profileEditTextarea{width:100%;border:1px solid rgba(255,255,255,.08);background:#202023;color:#fff;border-radius:14px;padding:14px;outline:0}
+.profileEditTextarea{min-height:92px;resize:vertical}
+.profileEditActions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.profileEditActions .settingButton{margin-top:0}
+#editProfileToggle{min-width:72px}
