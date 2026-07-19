@@ -1,4 +1,4 @@
 {
-  "version": "8.6.10",
-  "message": "Pulse 8.6.10 restores the stable app and fixes profile edit / password reset startup issues."
+  "version": "8.6.11",
+  "message": "Pulse 8.6.11 adds built-in avatar galleries and removes custom uploads."
 }
