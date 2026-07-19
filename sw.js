@@ -1,1 +1,46 @@
-const CACHE="pulse-beta-v32",ASSETS=["./","./index.html","./styles.css","./app.js","./manifest.webmanifest","./icon.svg","./favicon.svg"];self.addEventListener("install",e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)))});self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==CACHE).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));self.addEventListener("fetch",e=>{if(new URL(e.request.url).pathname.endsWith("/version.json")){e.respondWith(fetch(e.request,{cache:"no-store"}));return}if(e.request.method!=="GET")return;e.respondWith(fetch(e.request).then(r=>{const c=r.clone();caches.open(CACHE).then(x=>x.put(e.request,c));return r}).catch(()=>caches.match(e.request)))})
+const CACHE = "pulse-scratch-v1";
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./styles.css",
+  "./app.js",
+  "./manifest.webmanifest",
+  "./icon.svg",
+  "./favicon.svg",
+  "./version.json"
+];
+
+self.addEventListener("install", event => {
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+    self.skipWaiting();
+  })());
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch", event => {
+  const url = new URL(event.request.url);
+  if (url.pathname.endsWith("/version.json")) {
+    event.respondWith(fetch(event.request, { cache: "no-store" }));
+    return;
+  }
+  if (event.request.method !== "GET") return;
+  event.respondWith((async () => {
+    try {
+      const fresh = await fetch(event.request);
+      const cache = await caches.open(CACHE);
+      cache.put(event.request, fresh.clone());
+      return fresh;
+    } catch {
+      return caches.match(event.request);
+    }
+  })());
+});

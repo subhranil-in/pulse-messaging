@@ -1,4 +1,4 @@
 {
-  "version": "8.6.10",
-  "message": "Pulse 8.6.10 restores the stable app and fixes profile edit / password reset startup issues."
+  "version": "9.0.0",
+  "message": "Pulse 9.0.0 rebuilt from scratch with built-in avatars and stable inline profile editing."
 }
