@@ -1,4 +1,4 @@
-# Pulse v8.6.8 BETA
+# Pulse v8.6.7 BETA
 
 Adds profile editing:
 - Edit Username
