@@ -119,3 +119,20 @@ h3{padding:0 15px;color:var(--muted);font-size:13px}
 .profilePhotoBtn{cursor:pointer}
 .profilePhotoBtn span{background:#2c2c2e}
 .profilePhotoBtn img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+
+body{background:linear-gradient(180deg,#000 0%,#050505 100%)}
+.card,.settingCard,.toggleRow{background:rgba(28,28,30,.86);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:0 10px 30px rgba(0,0,0,.22)}
+.appHeader,.chatHeader,.settingsHeader,.tabs{background:rgba(8,8,10,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.profileCardSetup{width:min(420px,90vw)}
+.profilePhotoBtn{width:100%;border-radius:22px;padding:14px 16px;background:rgba(255,255,255,.05)}
+.profilePhotoBtn span{width:112px;height:112px;border-radius:34px;background:#1c1c1e;font-size:34px;border:1px solid rgba(255,255,255,.08)}
+.profilePhotoBtn b{font-size:15px;font-weight:700;color:#f5f5f7}
+.avatarChooser small{margin-top:-2px}
+.profileTop{padding:2px 0}
+.settingsBody .settingCard{border-radius:28px}
+.messageForm{padding:10px 9px calc(10px + env(safe-area-inset-bottom))}
+.send{box-shadow:0 6px 18px rgba(37,211,102,.24)}
+
+#profileView .card,#settingsView .settingCard{border-radius:28px}
+.profileMeta p,.copy small{color:#aeaeb2}
+.profileMeta b{font-size:19px}

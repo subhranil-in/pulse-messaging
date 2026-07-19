@@ -1,4 +1,4 @@
 {
-  "version": "9.0.1",
-  "message": "Pulse 9.0.1 fixes profile picture upload handling."
+  "version": "9.1.0",
+  "message": "Pulse 9.1.0 removes avatar gallery UI and uses custom profile pictures only with iOS-style cards."
 }

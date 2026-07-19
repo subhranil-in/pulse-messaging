@@ -1,4 +1,4 @@
-const CACHE = "pulse-scratch-v1";
+const CACHE = "pulse-scratch-v2";
 const ASSETS = [
   "./",
   "./index.html",

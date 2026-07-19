@@ -37,7 +37,7 @@ const firebaseConfig = {
   appId: "1:89142546151:web:3f90bbd29a2341377d5c42"
 };
 
-const VERSION = "9.0.1";
+const VERSION = "9.1.0";
 const $ = id => document.getElementById(id);
 const bind = (id, evt, fn) => { const el = $(id); if (el) el.addEventListener(evt, fn); };
 const show = viewId => {
@@ -56,7 +56,6 @@ let user = null;
 let me = null;
 let peer = null;
 let cid = null;
-let selectedAvatarKey = "male_01";
 let customProfilePhotoData = "";
 let profileEditMode = false;
 let currentMessages = [];
@@ -110,7 +109,7 @@ function defaultAvatarKey(name) {
 function setAvatar(el, profile) {
   if (!el) return;
   el.replaceChildren();
-  const src = profile?.photoData || (profile?.avatarKey ? avatarUrl(profile.avatarKey) : null);
+  const src = profile?.photoData || null;
   if (src) {
     const img = document.createElement("img");
     img.src = src;
@@ -372,23 +371,12 @@ function syncAvatarUI() {
     img.alt = "";
     settingsPreview.append(img);
   }
-  setAvatar($("homeAvatar"), { avatarKey: selectedAvatarKey, photoData: customProfilePhotoData, displayName: me?.displayName });
-  setAvatar($("settingsAvatar"), { avatarKey: selectedAvatarKey, photoData: customProfilePhotoData, displayName: me?.displayName });
-  renderAvatarPicker("profileAvatarPicker", selectedAvatarKey, key => {
-    selectedAvatarKey = key;
-    customProfilePhotoData = "";
-    syncAvatarUI();
-  });
-  renderAvatarPicker("settingsAvatarPicker", selectedAvatarKey, key => {
-    selectedAvatarKey = key;
-    customProfilePhotoData = "";
-    syncAvatarUI();
-  });
+  setAvatar($("homeAvatar"), { photoData: customProfilePhotoData, displayName: me?.displayName });
+  setAvatar($("settingsAvatar"), { photoData: customProfilePhotoData, displayName: me?.displayName });
 }
 
 function syncProfileFields() {
   if (!me) return;
-  selectedAvatarKey = me.avatarKey || selectedAvatarKey || defaultAvatarKey(me.displayName);
   customProfilePhotoData = me.photoData || customProfilePhotoData || "";
   if ($("editDisplayName")) $("editDisplayName").value = me.displayName || "";
   if ($("editAbout")) $("editAbout").value = me.about || "";
@@ -406,11 +394,10 @@ async function saveProfileEdits() {
   await updateDoc(doc(db, "users", user.uid), {
     displayName,
     about,
-    avatarKey: selectedAvatarKey,
     photoData: customProfilePhotoData || "",
     updatedAt: serverTimestamp()
   });
-  me = { ...me, displayName, about, avatarKey: selectedAvatarKey, photoData: customProfilePhotoData || "" };
+  me = { ...me, displayName, about, photoData: customProfilePhotoData || "" };
   await setDoc(doc(db, "users", user.uid), me, { merge: true });
   await syncChatList();
   syncProfileFields();
@@ -807,7 +794,6 @@ async function saveProfileSetup() {
     displayName,
     phone,
     about,
-    avatarKey: selectedAvatarKey,
     photoData: customProfilePhotoData || "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
@@ -822,7 +808,7 @@ async function saveProfileSetup() {
 async function loadProfile() {
   const snap = await getDoc(doc(db, "users", user.uid));
   if (!snap.exists()) {
-    selectedAvatarKey = defaultAvatarKey(user.email?.split("@")[0]);
+    customProfilePhotoData = "";
     syncAvatarUI();
     openProfile();
     return;
@@ -990,8 +976,6 @@ bind("saveProfileEditBtn", "click", async () => {
     profileEditStatus(err.message || "Could not save profile.");
   }
 });
-bind("settingsSelectedAvatarBtn", "click", () => $("settingsPhotoUploadInput")?.click());
-bind("profileSelectedAvatarBtn", "click", () => $("profilePhotoUploadInput")?.click());
 bind("cancelReplyBtn", "click", () => {
   reply = null;
   $("replyBar")?.classList.add("hidden");
@@ -1079,12 +1063,6 @@ function showHomeView() {
   if (me && $("homeAvatar")) setAvatar($("homeAvatar"), me);
 }
 
-bind("profileSelectedAvatarBtn", "click", () => {
-  if ($("profileAvatarPicker")) $("profileAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
-});
-bind("settingsSelectedAvatarBtn", "click", () => {
-  if ($("settingsAvatarPicker")) $("settingsAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
-});
 
 (async () => {
   await checkForUpdates(false);
