@@ -1,116 +1,1024 @@
-import "https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js";
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
-import{initializeApp}from"https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";import{getAuth,onAuthStateChanged,signInWithEmailAndPassword,createUserWithEmailAndPassword,signOut,sendEmailVerification,sendPasswordResetEmail,reload}from"https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";import{getFirestore,doc,getDoc,setDoc,updateDoc,deleteDoc,collection,addDoc,query,where,orderBy,limit,onSnapshot,serverTimestamp,getDocs,increment}from"https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-const firebaseConfig={apiKey:"AIzaSyAWPuECsVNQy0lACwG7OkNkkWD6ZXlSsPU",authDomain:"pulse-messaging-6d6ca.firebaseapp.com",projectId:"pulse-messaging-6d6ca",storageBucket:"pulse-messaging-6d6ca.firebasestorage.app",messagingSenderId:"89142546151",appId:"1:89142546151:web:3f90bbd29a2341377d5c42"};
-const SUPABASE_URL="https://zztixezukwatipngsyrh.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY="sb_publishable_3bQXKTqD_qOG2D_6Hzv-KQ_RI_dLSct";
-const TEMP_BUCKET="pulse-temp-files";
-const MAX_FILE_BYTES=25*1024*1024;
-const PULSE_VERSION="8.6.10";
-const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{accessToken:async()=>auth?.currentUser?await auth.currentUser.getIdToken():null});
-const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=x=>document.getElementById(x);let user,me,peer,cid,uc,um,up,ut,us,timer,reply=null,dbLocal=null,currentMessages=[],chatItems=[],currentStatus=null;
-let chatSelectionMode=false,selectedChats=new Set(),lastMessageRenderSignature="";let activeMessage=null,profilePhotoData="";
-const views=["auth","verifyEmail","profile","home","chat","statusViewer","settings"],show=x=>views.forEach(y=>$(y).classList.toggle("hidden",x!==y)),digits=x=>x.replace(/\D/g,""),fullPhone=(c,id)=>c+digits($(id).value),chatId=(a,b)=>[a,b].sort().join("_"),initial=n=>(n||"U")[0].toUpperCase(),fmt=t=>{const d=t?.toDate?.()||(t?new Date(t):null);return d&&!isNaN(d)?d.toLocaleTimeString([],{hour:"2-digit","minute":"2-digit"}):""};
-const setAuthStatus=text=>{const el=$("authStatus");if(el)el.textContent=text};
-function openLocal(){return new Promise((ok,no)=>{const r=indexedDB.open("pulse-free-v1",2);r.onupgradeneeded=()=>{const d=r.result;["kv","messages","outbox","files"].forEach(n=>{if(!d.objectStoreNames.contains(n))d.createObjectStore(n,n==="messages"?{keyPath:"key"}:{keyPath:"key"})})};r.onsuccess=()=>{dbLocal=r.result;ok()};r.onerror=()=>no(r.error)})}
-async function ready(){if(!dbLocal)await openLocal()}async function put(store,v){await ready();return new Promise((ok,no)=>{const r=dbLocal.transaction(store,"readwrite").objectStore(store).put(v);r.onsuccess=()=>ok();r.onerror=()=>no(r.error)})}async function get(store,key){await ready();return new Promise(ok=>{const r=dbLocal.transaction(store).objectStore(store).get(key);r.onsuccess=()=>ok(r.result);r.onerror=()=>ok(null)})}async function all(store){await ready();return new Promise(ok=>{const r=dbLocal.transaction(store).objectStore(store).getAll();r.onsuccess=()=>ok(r.result||[]);r.onerror=()=>ok([])})}async function del(store,key){await ready();return new Promise(ok=>{const r=dbLocal.transaction(store,"readwrite").objectStore(store).delete(key);r.onsuccess=()=>ok();r.onerror=()=>ok()})}async function clearStore(store){await ready();return new Promise(ok=>{const r=dbLocal.transaction(store,"readwrite").objectStore(store).clear();r.onsuccess=()=>ok();r.onerror=()=>ok()})}
-openLocal().catch(console.error);
-function localPrefs(){const p=JSON.parse(localStorage.getItem("pulsePrefs:"+user?.uid)||"{}");return{readReceipts:p.readReceipts??true,showOnline:p.showOnline??true,pinned:p.pinned||[],archived:p.archived||[],muted:p.muted||[],blocked:p.blocked||[],stars:p.stars||[],deletedChats:p.deletedChats||[],deletedMessages:p.deletedMessages||[]}}function savePrefs(p){localStorage.setItem("pulsePrefs:"+user.uid,JSON.stringify(p))}
-function restoreChatsAfterUpdate(){const migrationKey="pulseChatRestore:8.4.1:"+user.uid;if(localStorage.getItem(migrationKey))return;const p=localPrefs();p.deletedChats=[];savePrefs(p);localStorage.setItem(migrationKey,"done")}
-function resolveAuthGate(){if(window.__pulseAuthResolved)return;window.__pulseAuthResolved=true;document.documentElement.classList.remove("pulse-auth-pending")}
-onAuthStateChanged(auth,async u=>{user=u;try{if(!u){show("auth");resolveAuthGate();return}if(!u.emailVerified){$("verifyMessage").textContent=`We sent a verification link to ${u.email}. Open the email, tap the verification link, then return to Pulse. Please check your spam folder for the verification link.`;show("verifyEmail");resolveAuthGate();return}await u.getIdToken(true);restoreChatsAfterUpdate();const s=await getDoc(doc(db,"users",u.uid));if(!s.exists()){show("profile");resolveAuthGate();return}me=s.data();syncProfileEditFields();await put("kv",{key:"profile:"+u.uid,value:me});const prefs=localPrefs();if(prefs.showOnline)updateDoc(doc(db,"users",u.uid),{online:true,lastSeen:serverTimestamp()}).catch(()=>{});show("home");await renderCachedChats();resolveAuthGate();listenChats();listenStatuses();flushOutbox()}catch(e){console.error("Pulse startup failed",e);if(u)show("home");else show("auth");resolveAuthGate()}});
-$("forgotPassword").onclick=async()=>{const email=($("email").value.trim()||auth.currentUser?.email||"").trim();if(!email)return setAuthStatus("Enter your email address first, then tap Forgot password.");try{setAuthStatus("Sending password reset email…");await sendPasswordResetEmail(auth,email);setAuthStatus("Password reset email sent. Check your inbox and spam folder.")}catch(e){console.error(e);const messages={"auth/invalid-email":"Enter a valid email address.","auth/user-not-found":"No account found with this email.","auth/unauthorized-domain":"This site is not authorized in Firebase.","auth/network-request-failed":"Check your internet connection and try again.","auth/too-many-requests":"Too many attempts. Try again later."};setAuthStatus(messages[e?.code]||e?.message||"Could not send reset email. Please try again.")}};
-$("signin").onclick=async()=>{try{$("authStatus").textContent="Signing in…";await signInWithEmailAndPassword(auth,$("email").value.trim(),$("password").value);$("authStatus").textContent=""}catch(e){$("authStatus").textContent=e.message}};$("signup").onclick=async()=>{try{$("authStatus").textContent="Creating account…";const c=await createUserWithEmailAndPassword(auth,$("email").value.trim(),$("password").value);await sendEmailVerification(c.user);$("authStatus").textContent=""}catch(e){$("authStatus").textContent=e.message}};
-let resendCooldown=false;
-$("verifiedBtn").onclick=async()=>{try{$("verifyStatus").textContent="Checking verification…";await reload(auth.currentUser);user=auth.currentUser;if(!user.emailVerified){$("verifyStatus").textContent="Email is not verified yet. Open the verification link in your email first.";return}await user.getIdToken(true);$("verifyStatus").textContent="Email verified ✓";const s=await getDoc(doc(db,"users",user.uid));if(!s.exists())show("profile");else{me=s.data();syncProfileEditFields();show("home");await renderCachedChats();listenChats();listenStatuses();flushOutbox()}}catch(e){$("verifyStatus").textContent=e.message}};
-$("resendVerification").onclick=async()=>{if(resendCooldown)return;try{resendCooldown=true;$("resendVerification").disabled=true;$("verifyStatus").textContent="Sending verification email…";await sendEmailVerification(auth.currentUser);$("verifyStatus").textContent="Verification email sent. Check Inbox and Spam.";setTimeout(()=>{resendCooldown=false;$("resendVerification").disabled=false},30000)}catch(e){resendCooldown=false;$("resendVerification").disabled=false;$("verifyStatus").textContent=e.message}};
-$("verifyLogout").onclick=()=>signOut(auth);
-function setAvatar(el,p){el.replaceChildren();if(p?.photoData){const im=document.createElement("img");im.src=p.photoData;im.alt="";el.append(im)}else el.textContent=initial(p?.displayName)}
-async function resizeProfilePhoto(file){return new Promise((ok,no)=>{const im=new Image(),u=URL.createObjectURL(file);im.onload=()=>{const size=256,cv=document.createElement("canvas");cv.width=cv.height=size;const ctx=cv.getContext("2d"),scale=Math.max(size/im.width,size/im.height),w=im.width*scale,h=im.height*scale;ctx.drawImage(im,(size-w)/2,(size-h)/2,w,h);URL.revokeObjectURL(u);ok(cv.toDataURL("image/jpeg",.72))};im.onerror=no;im.src=u})}
-$("profilePhotoBtn").onclick=()=>{$("profilePhotoInput").click()};$("profilePhotoInput").onchange=async()=>{const f=$("profilePhotoInput").files[0];if(!f)return;profilePhotoData=await resizeProfilePhoto(f);$("profilePhotoPreview").innerHTML=`<img src="${profilePhotoData}" alt="">`};
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  reload
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  addDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  serverTimestamp,
+  getDocs,
+  increment
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
-let profileEditMode=false;
-function setProfileEditMode(on){profileEditMode=!!on;if($("profileView"))$("profileView").classList.toggle("hidden",profileEditMode);if($("profileEditPanel"))$("profileEditPanel").classList.toggle("hidden",!profileEditMode);if($("profileEditActions"))$("profileEditActions").classList.toggle("hidden",!profileEditMode);if($("profileEditStatus"))$("profileEditStatus").textContent="";if($("editProfileBtn"))$("editProfileBtn").textContent=profileEditMode?"Done":"Edit";if(profileEditMode&&$("editDisplayName"))$("editDisplayName").focus()}
-function syncProfileEditFields(){if(!me)return;$("editDisplayName").value=me.displayName||"";$("editAbout").value=me.about||"";$("settingsName").textContent=me.displayName||"Profile";$("settingsAbout").textContent=me.about||"Hey there! I am using Pulse.";setAvatar($("myAvatar"),me);if($("profilePhotoPreview"))$("profilePhotoPreview").innerHTML=me.photoData?`<img src="${me.photoData}" alt="">`:"＋";if(!profileEditMode)setProfileEditMode(false)}
-async function saveProfileEdits(){const displayName=$("editDisplayName").value.trim(),about=$("editAbout").value.trim();if(displayName.length<2)throw Error("Enter your name.");if(about.length>120)throw Error("About is too long.");await updateDoc(doc(db,"users",user.uid),{displayName,about,lastSeen:serverTimestamp()});me={...me,displayName,about};await put("kv",{key:"profile:"+user.uid,value:me});syncProfileEditFields();renderChatItems(chatItems,$("chatList"))}
-$("editProfileBtn").onclick=()=>{setProfileEditMode(!profileEditMode);syncProfileEditFields()};
-$("cancelProfileEdit").onclick=()=>{setProfileEditMode(false);syncProfileEditFields()};
-$("saveProfileEdit").onclick=async()=>{try{$("profileEditStatus").textContent="Saving…";await saveProfileEdits();setProfileEditMode(false);$("profileEditStatus").textContent="Saved ✓"}catch(e){$("profileEditStatus").textContent=e.message}}
-$("saveProfile").onclick=async()=>{try{const displayName=$("displayName").value.trim(),phone=fullPhone($("countryCode").value,"phone"),about=$("about").value.trim();if(displayName.length<2)throw Error("Enter your name.");if(digits(phone).length<8)throw Error("Enter a valid mobile number.");const s=await getDocs(query(collection(db,"users"),where("phone","==",phone),limit(1)));if(!s.empty)throw Error("Mobile number already registered.");me={uid:user.uid,email:user.email,displayName,phone,about,photoData:profilePhotoData,online:true,lastSeen:serverTimestamp(),createdAt:serverTimestamp()};await setDoc(doc(db,"users",user.uid),me);syncProfileEditFields();show("home");listenChats();listenStatuses()}catch(e){$("profileStatus").textContent=e.message}};
-const openFinder=()=>{$("finder").classList.remove("hidden");$("searchResult").replaceChildren();$("searchPhone").value="";setTimeout(()=>$("searchPhone").focus(),80)};$("fab").onclick=openFinder;$("closeFinder").onclick=()=>$("finder").classList.add("hidden");
-function normalizedPhone(value){return digits(String(value||"")).replace(/^0+/,"")}
-function phoneMatches(saved,country,raw){const savedDigits=normalizedPhone(saved),local=normalizedPhone(raw),countryDigits=normalizedPhone(country),wanted=countryDigits+local;if(!savedDigits||!local)return false;return savedDigits===wanted||savedDigits===local||savedDigits.endsWith(local)||wanted.endsWith(savedDigits)}
-async function findPulseUserByPhone(country,raw){const local=normalizedPhone(raw);if(local.length<7)throw Error("Enter a valid mobile number.");const snapshot=await getDocs(collection(db,"users"));for(const d of snapshot.docs){const profile={uid:d.id,...d.data()};if(phoneMatches(profile.phone,country,raw))return profile}return null}
-$("searchBtn").onclick=async()=>{const box=$("searchResult"),btn=$("searchBtn"),raw=$("searchPhone").value.trim(),country=$("searchCountry").value;box.replaceChildren();box.textContent="Searching Pulse users…";btn.disabled=true;try{const p=await findPulseUserByPhone(country,raw);box.replaceChildren();if(!p){box.textContent="No Pulse user found. Make sure the other user has completed their Pulse profile.";return}if(p.uid===user.uid){box.textContent="This is your number.";return}row(box,{p,unread:0,last:p.about||"Tap to message",time:""})}catch(e){console.error("Phone search failed",e);box.textContent=e.code==="permission-denied"?"Pulse cannot read user profiles. Publish the included firestore.rules in Firebase.":(e.message||"Could not search right now. Try again.")}finally{btn.disabled=false}};$("searchPhone").addEventListener("keydown",e=>{if(e.key==="Enter")$("searchBtn").click()});
-function selectedArePinned(){const p=localPrefs();return selectedChats.size>0&&[...selectedChats].every(uid=>p.pinned.includes(uid))}
-function refreshSelectionActions(){const allPinned=selectedArePinned();$("pinSelected").textContent=allPinned?"Unpin":"Pin"}
-function setChatSelection(on){chatSelectionMode=on;if(!on)selectedChats.clear();$("homeHeader").classList.toggle("hidden",on);$("chatSelectionBar").classList.toggle("hidden",!on);$("fab").classList.toggle("hidden",on);updateChatSelection();refreshSelectionActions();renderChatItems(chatItems,$("chatList"))}
-function updateChatSelection(){$("selectedChatCount").textContent=selectedChats.size+" selected";refreshSelectionActions()}
-function toggleSelected(uid){selectedChats.has(uid)?selectedChats.delete(uid):selectedChats.add(uid);updateChatSelection();renderChatItems(chatItems,$("chatList"))}
-function row(box,x){const prefs=localPrefs(),r=document.createElement("div");r.className="row"+(prefs.pinned.includes(x.p.uid)?" pinned":"")+(prefs.muted.includes(x.p.uid)?" muted":"")+(chatSelectionMode?" selecting":"")+(selectedChats.has(x.p.uid)?" selected":"");if(chatSelectionMode){const mark=document.createElement("span");mark.className="selectMark";mark.textContent=selectedChats.has(x.p.uid)?"✓":"";r.append(mark)}const av=document.createElement("div");av.className="avatar textAvatar";setAvatar(av,x.p);const c=document.createElement("div");c.className="copy";const top=document.createElement("div");top.className="rowTop";const b=document.createElement("b");b.textContent=(prefs.pinned.includes(x.p.uid)?"📌 ":"")+x.p.displayName;const tm=document.createElement("small");tm.textContent=x.time;top.append(b,tm);const pr=document.createElement("small");pr.textContent=x.last||x.p.phone;c.append(top,pr);r.append(av,c);if(x.unread){const n=document.createElement("span");n.className="badge";n.textContent=x.unread>99?"99+":x.unread;r.append(n)}r.onclick=()=>chatSelectionMode?toggleSelected(x.p.uid):openChat(x.p);let pressTimer;r.onpointerdown=()=>{if(!chatSelectionMode)pressTimer=setTimeout(()=>{setChatSelection(true);toggleSelected(x.p.uid)},550)};r.onpointerup=r.onpointercancel=r.onpointermove=()=>clearTimeout(pressTimer);box.append(r)}
-async function renderCachedChats(){const c=await get("kv","chats:"+user.uid);if(c?.value){chatItems=c.value;renderChatItems(chatItems,$("chatList"))}}
-function renderChatItems(items,box){const prefs=localPrefs(),visible=items.filter(x=>!prefs.deletedChats.includes(x.p.uid));box.replaceChildren();[...visible].sort((a,b)=>{const ap=prefs.pinned.includes(a.p.uid),bp=prefs.pinned.includes(b.p.uid);if(ap!==bp)return Number(bp)-Number(ap);return 0}).forEach(x=>row(box,x))}
-$("selectChats").onclick=()=>setChatSelection(true);$("cancelChatSelection").onclick=()=>setChatSelection(false);
-$("pinSelected").onclick=()=>{if(!selectedChats.size)return;const p=localPrefs(),allPinned=[...selectedChats].every(uid=>p.pinned.includes(uid));if(allPinned){p.pinned=p.pinned.filter(uid=>!selectedChats.has(uid))}else{for(const uid of selectedChats)if(!p.pinned.includes(uid))p.pinned.push(uid)}savePrefs(p);setChatSelection(false);renderChatItems(chatItems,$("chatList"))};
-$("deleteSelected").onclick=()=>{if(!selectedChats.size||!confirm("Delete selected chats from this device? The other person keeps their chat."))return;const p=localPrefs();for(const uid of selectedChats){if(!p.deletedChats.includes(uid))p.deletedChats.push(uid);p.pinned=p.pinned.filter(x=>x!==uid)}savePrefs(p);setChatSelection(false)};
-function listenChats(){if(uc)uc();uc=onSnapshot(query(collection(db,"chats"),where("members","array-contains",user.uid)),async s=>{const items=[];for(const d of [...s.docs].sort((a,b)=>(b.data().updatedAt?.toMillis?.()||0)-(a.data().updatedAt?.toMillis?.()||0))){const c=d.data(),id=c.members.find(x=>x!==user.uid),ps=await getDoc(doc(db,"users",id));if(!ps.exists())continue;const rs=await getDoc(doc(db,"chats",d.id,"readState",user.uid));items.push({p:ps.data(),unread:rs.exists()?rs.data().unread||0:0,last:c.lastMessage||"Start chatting",time:fmt(c.updatedAt)})}chatItems=items;await put("kv",{key:"chats:"+user.uid,value:items});renderChatItems(items,$("chatList"))},renderCachedChats)}
-async function openChat(p){lastMessageRenderSignature="";$("messages").removeAttribute("data-rendered");const prefs=localPrefs();if(prefs.blocked.includes(p.uid)&&!confirm("This user is blocked. Open chat anyway?"))return;peer=p;cid=chatId(user.uid,p.uid);await setDoc(doc(db,"chats",cid),{members:[user.uid,p.uid],updatedAt:serverTimestamp()},{merge:true});await setDoc(doc(db,"chats",cid,"readState",user.uid),{unread:0},{merge:true});$("peerName").textContent=p.displayName;setAvatar($("peerAvatar"),p);$("finder").classList.add("hidden");show("chat");listenMessages();listenPeer();listenTyping()}
-async function cacheMessage(id,m){await put("messages",{key:user.uid+"|"+cid+"|"+id,owner:user.uid,chat:cid,id,...m,createdMs:m.createdAt?.toMillis?.()||m.createdMs||Date.now()})}async function localChat(){return (await all("messages")).filter(x=>x.owner===user.uid&&x.chat===cid).sort((a,b)=>a.createdMs-b.createdMs)}async function renderLocal(){currentMessages=await localChat();renderMessages(currentMessages)}
-function listenMessages(){if(um)um();renderLocal();um=onSnapshot(query(collection(db,"chats",cid,"messages"),orderBy("createdAt","asc"),limit(300)),async s=>{currentMessages=[];for(const d of s.docs){const m=d.data();await cacheMessage(d.id,m);currentMessages.push({id:d.id,...m})}renderMessages(currentMessages);const prefs=localPrefs();await setDoc(doc(db,"chats",cid,"readState",user.uid),{unread:0},{merge:true});if(prefs.readReceipts&&document.visibilityState==="visible"&&!$("chat").classList.contains("hidden"))for(const d of s.docs){const m=d.data();if(m.senderId!==user.uid&&m.status!=="seen")updateDoc(d.ref,{status:"seen",seenAt:serverTimestamp()}).catch(()=>{})}},renderLocal)}
-function renderMessages(items){const prefsLocal=localPrefs(),visibleItems=items.filter(m=>!prefsLocal.deletedMessages.includes(m.id||m.key)),term=$("messageSearch").value.trim().toLowerCase(),filtered=term?visibleItems.filter(m=>(m.text||"").toLowerCase().includes(term)):visibleItems,box=$("messages"),wasNearBottom=box.scrollHeight-box.scrollTop-box.clientHeight<90,signature=filtered.map(m=>{const q=m.data?m.data():m;return[m.id,q.text,q.status,q.editedAt?.seconds||"",JSON.stringify(q.reactions||{}),q.filePath||""].join(":")}).join("|");if(signature===lastMessageRenderSignature)return;lastMessageRenderSignature=signature;const existing=new Map([...box.children].map(el=>[el.dataset.messageId,el]));const frag=document.createDocumentFragment();for(const raw of filtered){const id=raw.id||raw.key,node=existing.get(id),m=raw.data?{id:raw.id,...raw.data()}:raw;const sig=[m.text,m.status,m.editedAt?.seconds||"",JSON.stringify(m.reactions||{}),m.filePath||""].join(":");if(node&&node.dataset.renderSig===sig){frag.append(node);existing.delete(id)}else{const fresh=messageEl(raw);fresh.dataset.messageId=id;fresh.dataset.renderSig=sig;frag.append(fresh)}}box.replaceChildren(frag);if(wasNearBottom||!box.dataset.rendered)requestAnimationFrame(()=>box.scrollTop=box.scrollHeight);box.dataset.rendered="1"}
-function messageEl(m){if(m.data)m={id:m.id,...m.data()};const prefs=localPrefs(),e=document.createElement("article");e.className="msg"+(m.senderId===user.uid?" mine":"")+(m.queued?" queued":"");if(m.replyText){const q=document.createElement("div");q.className="quoted";q.textContent=m.replyText;e.append(q)}const x=document.createElement("div");if(prefs.stars.includes(m.id)){const st=document.createElement("span");st.className="star";st.textContent="★";x.append(st)}if(!m.filePath)x.append(document.createTextNode(m.text||""));e.append(x);if(m.linkUrl){const link=document.createElement("a");link.className="linkCard";link.href=m.linkUrl;link.target="_blank";link.rel="noopener noreferrer";const title=document.createElement("strong");title.textContent=m.linkLabel||"Open shared link";const urlText=document.createElement("span");urlText.textContent=m.linkUrl;link.append(title,urlText);e.append(link)}if(m.filePath)e.append(fileMessageCard(m));else if(m.text==="Shared a file"){const warning=document.createElement("div");warning.className="fileCard";const title=document.createElement("b");title.textContent="📎 File metadata unavailable";const note=document.createElement("small");note.textContent="This file was sent from an older cached Pulse build. Ask the sender to send it again after updating Pulse.";warning.append(title,note);e.append(warning)}const reactions=m.reactions||{};if(Object.keys(reactions).length){const bar=document.createElement("div");bar.className="reactionBar";for(const [emoji,uids] of Object.entries(reactions)){if(uids?.length){const b=document.createElement("span");b.className="reaction";b.textContent=emoji+" "+uids.length;bar.append(b)}}e.append(bar)}const z=document.createElement("div");z.className="meta";z.textContent=m.queued?"Queued":fmt(m.createdAt||m.createdMs);if(m.senderId===user.uid&&!m.queued){const t=document.createElement("span");t.className="ticks";t.textContent=m.status==="seen"?"✓✓":"✓";if(m.status==="seen")t.classList.add("seen");z.append(t)}e.append(z);let holdTimer;e.onpointerdown=()=>{holdTimer=setTimeout(()=>openMessageActions(m),520)};e.onpointerup=e.onpointercancel=e.onpointermove=()=>clearTimeout(holdTimer);e.oncontextmenu=ev=>{ev.preventDefault();openMessageActions(m)};return e}
-function openMessageActions(m){activeMessage=m;$("quickReactions").replaceChildren(...["👍","❤️","😂","😮","😢","🙏"].map(emoji=>{const b=document.createElement("button");b.textContent=emoji;b.onclick=()=>reactMessage(m,emoji);return b}));$("deleteEveryoneAction").classList.toggle("hidden",m.senderId!==user.uid||m.queued);$("messageActionPopup").classList.remove("hidden")}
-async function reactMessage(m,emoji){const reactions=structuredClone(m.reactions||{}),uids=reactions[emoji]||[],i=uids.indexOf(user.uid);i<0?uids.push(user.uid):uids.splice(i,1);reactions[emoji]=uids;await updateDoc(doc(db,"chats",cid,"messages",m.id),{reactions});$("messageActionPopup").classList.add("hidden")}
-function replyMessage(m){reply={id:m.id,text:m.text,senderId:m.senderId};$("replyName").textContent=m.senderId===user.uid?"You":peer.displayName;$("replyText").textContent=m.text||m.fileName||"File";$("replyBar").classList.remove("hidden")}
-function starMessage(m){const p=localPrefs(),i=p.stars.indexOf(m.id);i<0?p.stars.push(m.id):p.stars.splice(i,1);savePrefs(p);lastMessageRenderSignature="";renderMessages(currentMessages)}
-function deleteForMe(m){const p=localPrefs();if(!p.deletedMessages.includes(m.id))p.deletedMessages.push(m.id);savePrefs(p);lastMessageRenderSignature="";renderMessages(currentMessages)}
-async function deleteForEveryone(m){if(confirm("Delete this message for everyone?"))await deleteDoc(doc(db,"chats",cid,"messages",m.id))}
-function openForward(m){$("messageActionPopup").classList.add("hidden");$("forwardList").replaceChildren();chatItems.forEach(x=>{const r=document.createElement("div");r.className="forwardRow";const av=document.createElement("div");av.className="avatar textAvatar";setAvatar(av,x.p);const b=document.createElement("b");b.textContent=x.p.displayName;r.append(av,b);r.onclick=()=>forwardMessage(m,x.p);$("forwardList").append(r)});$("forwardPopup").classList.remove("hidden")}
-async function forwardMessage(m,p){const oldPeer=peer,oldCid=cid;peer=p;cid=chatId(user.uid,p.uid);await setDoc(doc(db,"chats",cid),{members:[user.uid,p.uid]},{merge:true});const payload={text:m.text||"Forwarded message",forwarded:true};if(m.linkUrl)Object.assign(payload,{linkUrl:m.linkUrl,linkLabel:m.linkLabel});await sendOnline(payload);peer=oldPeer;cid=oldCid;$("forwardPopup").classList.add("hidden")}
-$("cancelForward").onclick=()=>$("forwardPopup").classList.add("hidden");
-$("messageActionPopup").addEventListener("click",async e=>{const b=e.target.closest("[data-msg-action]");if(!b||!activeMessage)return;const action=b.dataset.msgAction;if(action==="reply")replyMessage(activeMessage);if(action==="star")starMessage(activeMessage);if(action==="forward")return openForward(activeMessage);if(action==="deleteMe")deleteForMe(activeMessage);if(action==="deleteEveryone")await deleteForEveryone(activeMessage);$("messageActionPopup").classList.add("hidden")});
-$("cancelReply").onclick=()=>{reply=null;$("replyBar").classList.add("hidden")};
-async function sendOnline(payload,localKey){const d=await addDoc(collection(db,"chats",cid,"messages"),{...payload,senderId:user.uid,createdAt:serverTimestamp(),status:"sent"});await updateDoc(doc(db,"chats",cid),{lastMessage:payload.filePath?"📎 "+payload.fileName:(payload.linkUrl?"🔗 "+(payload.linkLabel||"Shared link"):payload.text),updatedAt:serverTimestamp()});await setDoc(doc(db,"chats",cid,"readState",peer.uid),{unread:increment(1)},{merge:true});setTimeout(()=>updateDoc(d,{status:"delivered"}).catch(()=>{}),300);if(localKey)await del("outbox",localKey)}
-async function queueMessage(payload){const key=crypto.randomUUID(),m={key,owner:user.uid,chat:cid,peer,createdMs:Date.now(),payload};await put("outbox",m);await cacheMessage("local-"+key,{...payload,senderId:user.uid,createdMs:m.createdMs,queued:true});await renderLocal()}
-async function send(payload){try{if(!navigator.onLine)throw Error("offline");await sendOnline(payload)}catch(e){await queueMessage(payload)}reply=null;$("replyBar").classList.add("hidden")}
+const firebaseConfig = {
+  apiKey: "AIzaSyAWPuECsVNQy0lACwG7OkNkkWD6ZXlSsPU",
+  authDomain: "pulse-messaging-6d6ca.firebaseapp.com",
+  projectId: "pulse-messaging-6d6ca",
+  storageBucket: "pulse-messaging-6d6ca.firebasestorage.app",
+  messagingSenderId: "89142546151",
+  appId: "1:89142546151:web:3f90bbd29a2341377d5c42"
+};
 
-function normalizeSharedUrl(v){try{const u=new URL(v.trim());return["http:","https:"].includes(u.protocol)?u.href:null}catch{return null}}
-function bytes(n){return n<1024?n+" B":n<1048576?(n/1024).toFixed(1)+" KB":(n/1048576).toFixed(1)+" MB"}
-function b64(v){let s="";for(let i=0;i<v.length;i+=32768)s+=String.fromCharCode(...v.subarray(i,i+32768));return btoa(s)}
-function unb64(s){const x=atob(s),a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a}
-async function sha256(b){return b64(new Uint8Array(await crypto.subtle.digest("SHA-256",b)))}
-async function encryptFile(f){const k=await crypto.subtle.generateKey({name:"AES-GCM",length:256},true,["encrypt","decrypt"]),iv=crypto.getRandomValues(new Uint8Array(12)),raw=await crypto.subtle.exportKey("raw",k),plain=await f.arrayBuffer();return{encrypted:await crypto.subtle.encrypt({name:"AES-GCM",iv},k,plain),key:b64(new Uint8Array(raw)),iv:b64(iv),hash:await sha256(plain)}}
-async function decryptFile(b,k,i){const key=await crypto.subtle.importKey("raw",unb64(k),{name:"AES-GCM"},false,["decrypt"]);return crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(i)},key,b)}
-function progress(n,t,p){$("fileProgressWrap").classList.remove("hidden");$("fileProgressName").textContent=n;$("fileProgressText").textContent=t;$("fileProgressBar").style.width=p+"%"}
-async function uploadEncryptedFile(f){if(f.size>MAX_FILE_BYTES)return alert("Maximum file size is 25 MB.");try{progress(f.name,"Encrypting…",15);const q=await encryptFile(f),id=crypto.randomUUID(),path=user.uid+"/"+id;progress(f.name,"Uploading…",45);const {error}=await supabase.storage.from(TEMP_BUCKET).upload(path,q.encrypted,{contentType:"application/octet-stream",upsert:false});if(error)throw error;progress(f.name,"Sending…",85);await send({text:"Shared a file",filePath:path,fileName:f.name,fileType:f.type||"application/octet-stream",fileSize:f.size,fileKey:q.key,fileIv:q.iv,fileHash:q.hash,fileExpiresAt:Date.now()+86400000});progress(f.name,"Sent ✓",100);setTimeout(()=>{$("linkSheet").classList.add("hidden");$("fileProgressWrap").classList.add("hidden")},500)}catch(e){progress(f.name,"Failed",0);alert("File upload failed: "+e.message)}}
-function fileMessageCard(m){const c=document.createElement("div");c.className="fileCard";const n=document.createElement("b");n.textContent=((m.fileType||"").startsWith("image/")?"▧ ":(m.fileType||"").startsWith("video/")?"▶ ":"▤ ")+(m.fileName||"File");const x=document.createElement("small");x.textContent=bytes(m.fileSize||0)+" · Temporary delivery";const b=document.createElement("button");b.className="fileAction";b.onclick=async ev=>{ev.stopPropagation();await handleFile(m,b,x)};c.append(n,x,b);setTimeout(()=>refreshFileCard(m,b,x),0);return c}
-async function refreshFileCard(m,b,x){const l=await get("files",user.uid+"|"+m.filePath);if(l){b.textContent="Open / Save to device";x.textContent=bytes(m.fileSize||0)+" · Saved locally";x.className="fileLocal";return}if(m.senderId===user.uid){b.textContent="Waiting for recipient";b.disabled=true;return}if(m.fileExpiresAt&&Date.now()>m.fileExpiresAt){b.textContent="File expired";b.disabled=true;x.className="fileExpired";return}b.textContent="Download securely";b.disabled=false}
-async function handleFile(m,b,x){const key=user.uid+"|"+m.filePath,l=await get("files",key);if(l){const blob=new Blob([l.data],{type:l.type}),u=URL.createObjectURL(blob),q=document.createElement("a");q.href=u;q.download=l.name;q.click();setTimeout(()=>URL.revokeObjectURL(u),30000);return}try{b.disabled=true;b.textContent="Downloading…";const {data,error}=await supabase.storage.from(TEMP_BUCKET).download(m.filePath);if(error)throw error;b.textContent="Decrypting…";const plain=await decryptFile(await data.arrayBuffer(),m.fileKey,m.fileIv);if(await sha256(plain)!==m.fileHash)throw Error("File integrity check failed.");await put("files",{key,name:m.fileName,type:m.fileType,size:m.fileSize,data:plain,savedAt:Date.now()});b.textContent="Saving to device…";const savedBlob=new Blob([plain],{type:m.fileType||"application/octet-stream"}),savedUrl=URL.createObjectURL(savedBlob),downloadLink=document.createElement("a");downloadLink.href=savedUrl;downloadLink.download=m.fileName||"Pulse-file";downloadLink.style.display="none";document.body.append(downloadLink);downloadLink.click();downloadLink.remove();setTimeout(()=>URL.revokeObjectURL(savedUrl),30000);b.textContent="Deleting server copy…";const {error:delError}=await supabase.storage.from(TEMP_BUCKET).remove([m.filePath]);if(delError)console.warn(delError);await refreshFileCard(m,b,x)}catch(e){b.disabled=false;b.textContent="Try download again";alert(e.message)}}
-$("linkBtn").onclick=()=>{$("linkForm").classList.add("hidden");$("fileProgressWrap").classList.add("hidden");$("linkSheet").classList.remove("hidden")};$("cancelLink").onclick=()=>$("linkSheet").classList.add("hidden");$("pickPhoto").onclick=()=>{$("filePicker").accept="image/*,video/*";$("filePicker").click()};$("pickDocument").onclick=()=>{$("filePicker").accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,application/*";$("filePicker").click()};$("filePicker").onchange=()=>{const f=$("filePicker").files[0];if(f)uploadEncryptedFile(f);$("filePicker").value=""};$("showLinkForm").onclick=()=>{$("linkForm").classList.toggle("hidden")};$("sendLink").onclick=async()=>{const linkUrl=normalizeSharedUrl($("sharedUrl").value);if(!linkUrl)return alert("Paste a valid link.");const linkLabel=$("sharedUrlLabel").value.trim();await send({text:linkLabel||"Shared a link",linkUrl,linkLabel});$("linkSheet").classList.add("hidden")};
-$("messageForm").onsubmit=async e=>{e.preventDefault();const text=$("messageInput").value.trim();if(!text)return;$("messageInput").value="";const payload={text};if(reply){payload.replyTo=reply.id;payload.replyText=reply.text}await send(payload)};
-async function flushOutbox(){if(!user||!navigator.onLine)return;for(const x of (await all("outbox")).filter(x=>x.owner===user.uid)){try{cid=x.chat;peer=x.peer;await sendOnline(x.payload,x.key);await del("messages",user.uid+"|"+x.chat+"|local-"+x.key)}catch(e){console.warn("Queue retry failed",e)}}if(peer&&cid)renderLocal()}window.addEventListener("online",flushOutbox);
-$("messageInput").oninput=async()=>{if(!cid||!navigator.onLine)return;await setDoc(doc(db,"chats",cid,"typing",user.uid),{typing:true},{merge:true});clearTimeout(timer);timer=setTimeout(()=>setDoc(doc(db,"chats",cid,"typing",user.uid),{typing:false},{merge:true}),1200)};
-function listenPeer(){if(up)up();up=onSnapshot(doc(db,"users",peer.uid),s=>{$("peerStatus").textContent=s.data()?.online?"online":"offline"})}function listenTyping(){if(ut)ut();ut=onSnapshot(doc(db,"chats",cid,"typing",peer.uid),s=>{$("typing").textContent=s.exists()&&s.data().typing?peer.displayName+" is typing…":""})}
-$("addStatus").onclick=async()=>{const text=prompt("Write your update");if(!text?.trim())return;await addDoc(collection(db,"statuses"),{uid:user.uid,name:me.displayName,text:text.trim(),createdAt:serverTimestamp(),expiresAt:Date.now()+86400000})};function listenStatuses(){if(us)us();us=onSnapshot(query(collection(db,"statuses"),orderBy("createdAt","desc"),limit(100)),s=>{const box=$("statusList");box.replaceChildren();const seen=new Set();for(const d of s.docs){const st=d.data();if(st.uid===user.uid||st.expiresAt<Date.now()||seen.has(st.uid)||!st.text)continue;seen.add(st.uid);const r=document.createElement("div");r.className="row";const a=document.createElement("div");a.className="avatar textAvatar";a.textContent=initial(st.name);const c=document.createElement("div");c.className="copy";c.innerHTML=`<b></b><small></small>`;c.querySelector("b").textContent=st.name;c.querySelector("small").textContent=fmt(st.createdAt);r.append(a,c);r.onclick=()=>viewStatus(st);box.append(r)}if(!box.children.length){const e=document.createElement("div");e.className="empty";e.textContent="No recent updates.";box.append(e)}})}
-function viewStatus(st){currentStatus=st;$("statusAvatar").textContent=initial(st.name);$("statusName").textContent=st.name;$("statusTime").textContent=fmt(st.createdAt);$("statusText").textContent=st.text;show("statusViewer")}$("closeStatus").onclick=()=>show("home");$("replyStatus").onclick=async()=>{const s=await getDoc(doc(db,"users",currentStatus.uid));if(s.exists()){await openChat(s.data());reply={id:"status",text:"Status: "+currentStatus.text,senderId:currentStatus.uid};$("replyName").textContent=currentStatus.name;$("replyText").textContent=reply.text;$("replyBar").classList.remove("hidden")}};
-$("tabs").onclick=e=>{const b=e.target.closest("button");if(!b)return;document.querySelectorAll("#tabs button").forEach(x=>x.classList.toggle("active",x===b));$("chatsPanel").classList.toggle("hidden",b.dataset.tab!=="chats");$("updatesPanel").classList.toggle("hidden",b.dataset.tab!=="updates")};
-$("globalSearch").onclick=()=>{$("searchOverlay").classList.remove("hidden");$("chatSearch").focus()};$("closeSearch").onclick=()=>$("searchOverlay").classList.add("hidden");$("chatSearch").oninput=()=>{const q=$("chatSearch").value.toLowerCase();renderChatItems(chatItems.filter(x=>x.p.displayName.toLowerCase().includes(q)||(x.last||"").toLowerCase().includes(q)),$("searchChats"))};
-$("messageSearchBtn").onclick=()=>{$("messageSearchBar").classList.remove("hidden");$("messageSearch").focus()};$("closeMessageSearch").onclick=()=>{$("messageSearchBar").classList.add("hidden");$("messageSearch").value="";renderMessages(currentMessages)};$("messageSearch").oninput=()=>renderMessages(currentMessages);
-$("chatMenu").onclick=()=>$("chatTools").classList.toggle("hidden");function togglePref(key){const p=localPrefs(),i=p[key].indexOf(peer.uid);i<0?p[key].push(peer.uid):p[key].splice(i,1);savePrefs(p);$("chatTools").classList.add("hidden");listenChats()}$("pinChat").onclick=()=>togglePref("pinned");$("archiveChat").onclick=()=>togglePref("archived");$("muteChat").onclick=()=>togglePref("muted");$("blockUser").onclick=()=>togglePref("blocked");$("clearChat").onclick=async()=>{for(const m of await localChat())await del("messages",m.key);renderLocal()};
-$("emojiPicker").addEventListener("emoji-click",e=>{const emoji=e.detail.unicode;$("messageInput").value+=emoji;$("messageInput").focus()});$("emojiBtn").onclick=()=>$("emojiTray").classList.toggle("hidden");
+const VERSION = "9.0.0";
+const $ = id => document.getElementById(id);
+const bind = (id, evt, fn) => { const el = $(id); if (el) el.addEventListener(evt, fn); };
+const show = viewId => {
+  const views = ["authView", "verifyEmailView", "profileView", "homeView", "chatView", "settingsView", "newChatView", "messageActionsView", "updatePopupView"];
+  for (const id of views) {
+    const el = $(id);
+    if (el) el.classList.toggle("hidden", id !== viewId);
+  }
+};
 
-async function renderBlockedUsers(){const box=$("blockedUsers"),prefs=localPrefs();box.replaceChildren();if(!prefs.blocked.length){const s=document.createElement("small");s.textContent="No blocked users.";box.append(s);return}for(const uid of prefs.blocked){let profile=chatItems.find(x=>x.p.uid===uid)?.p;if(!profile){const snap=await getDoc(doc(db,"users",uid));if(snap.exists())profile=snap.data()}const rowEl=document.createElement("div");rowEl.className="blockedRow";const av=document.createElement("div");av.className="miniAvatar textAvatar";av.textContent=initial(profile?.displayName||"U");const copy=document.createElement("div");copy.className="copy";const name=document.createElement("b");name.textContent=profile?.displayName||"Pulse user";const phoneText=document.createElement("small");phoneText.textContent=profile?.phone||uid;copy.append(name,phoneText);const btn=document.createElement("button");btn.className="unblockBtn";btn.textContent="Unblock";btn.onclick=()=>unblockUser(uid);rowEl.append(av,copy,btn);box.append(rowEl)}}
-async function unblockUser(uid){const prefs=localPrefs();prefs.blocked=prefs.blocked.filter(x=>x!==uid);savePrefs(prefs);await renderBlockedUsers();renderChatItems(chatItems,$("chatList"))}
-$("refreshBlocked").onclick=renderBlockedUsers;
-$("settingsBtn").onclick=async()=>{const p=localPrefs();syncProfileEditFields();$("readReceipts").checked=p.readReceipts;$("showOnline").checked=p.showOnline;show("settings");await renderBlockedUsers();const q=(await all("outbox")).filter(x=>x.owner===user.uid).length,m=(await all("messages")).filter(x=>x.owner===user.uid).length;$("localStats").textContent=`${m} cached messages · ${q} queued messages`};$("closeSettings").onclick=()=>show("home");$("readReceipts").onchange=e=>{const p=localPrefs();p.readReceipts=e.target.checked;savePrefs(p)};$("showOnline").onchange=e=>{const p=localPrefs();p.showOnline=e.target.checked;savePrefs(p);updateDoc(doc(db,"users",user.uid),{online:e.target.checked&&!document.hidden,lastSeen:serverTimestamp()}).catch(()=>{})};$("syncNow").onclick=flushOutbox;$("clearLocal").onclick=async()=>{if(confirm("Clear Pulse local data from this device?")){await clearStore("kv");await clearStore("messages");await clearStore("outbox");$("localStats").textContent="Local data cleared."}};$("logout").onclick=async()=>{updateDoc(doc(db,"users",user.uid),{online:false,lastSeen:serverTimestamp()}).catch(()=>{});await signOut(auth)};
-$("back").onclick=()=>{[um,up,ut].forEach(f=>f&&f());um=up=ut=null;show("home")};document.addEventListener("visibilitychange",()=>{if(user&&me&&localPrefs().showOnline)updateDoc(doc(db,"users",user.uid),{online:!document.hidden,lastSeen:serverTimestamp()}).catch(()=>{})});async function getPulseUpdate(){const r=await fetch("./version.json?check="+Date.now(),{cache:"no-store"});if(!r.ok)throw Error("Update information unavailable");return r.json()}
-function versionParts(v){return String(v).split(".").map(n=>parseInt(n,10)||0)}
-function newerVersion(remote,local){const a=versionParts(remote),b=versionParts(local);for(let i=0;i<Math.max(a.length,b.length);i++){if((a[i]||0)>(b[i]||0))return true;if((a[i]||0)<(b[i]||0))return false}return false}
-function updateSeenKey(v){return"pulseUpdateSeen:"+v}
-function setUpdateProgress(percent,text){$("updateProgressWrap").classList.remove("hidden");$("updateProgressBar").style.width=percent+"%";$("updateProgressPercent").textContent=percent+"%";$("updateProgressText").textContent=text}
-async function checkForPulseUpdate(manual=false){try{if(manual)$("updateStatus").textContent="Checking for updates…";const info=await getPulseUpdate();if(newerVersion(info.version,PULSE_VERSION)){const alreadySeen=localStorage.getItem(updateSeenKey(info.version))==="seen";if(manual||!alreadySeen){$("updatePopup").dataset.version=info.version;$("updateMessage").textContent=info.message||`Pulse ${info.version} is available.`;$("updateProgressWrap").classList.add("hidden");$("installUpdate").disabled=false;$("installUpdate").textContent="Update now";$("laterUpdate").classList.remove("hidden");$("updatePopup").classList.remove("hidden")}if(manual)$("updateStatus").textContent="New update available."}else{localStorage.setItem("pulseInstalledVersion",PULSE_VERSION);if(manual)$("updateStatus").textContent=`Pulse is up to date · v${PULSE_VERSION}`}}catch(e){console.error(e);if(manual)$("updateStatus").textContent="Could not check for updates. Try again."}}
-$("checkUpdates").onclick=()=>checkForPulseUpdate(true);
-$("laterUpdate").onclick=()=>{const v=$("updatePopup").dataset.version;if(v)localStorage.setItem(updateSeenKey(v),"seen");$("updatePopup").classList.add("hidden")};
-$("installUpdate").onclick=async()=>{const b=$("installUpdate"),target=$("updatePopup").dataset.version;b.disabled=true;$("laterUpdate").classList.add("hidden");try{setUpdateProgress(8,"Preparing update…");if(target)localStorage.setItem(updateSeenKey(target),"seen");await new Promise(r=>setTimeout(r,180));setUpdateProgress(24,"Checking app files…");const info=await getPulseUpdate();await new Promise(r=>setTimeout(r,180));setUpdateProgress(42,"Refreshing app service…");if("serviceWorker"in navigator){const regs=await navigator.serviceWorker.getRegistrations();for(const reg of regs)await reg.update()}await new Promise(r=>setTimeout(r,180));setUpdateProgress(65,"Removing old cached version…");const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith("pulse-beta-")).map(k=>caches.delete(k)));await new Promise(r=>setTimeout(r,180));setUpdateProgress(82,"Downloading latest Pulse…");await fetch("./app.js?update="+Date.now(),{cache:"reload"});await fetch("./styles.css?update="+Date.now(),{cache:"reload"});await fetch("./index.html?update="+Date.now(),{cache:"reload"});await new Promise(r=>setTimeout(r,220));setUpdateProgress(100,"Update ready. Restarting Pulse…");localStorage.setItem("pulseInstalledVersion",info.version||target||PULSE_VERSION);setTimeout(()=>location.reload(),650)}catch(e){console.error(e);setUpdateProgress(0,"Update failed. Check your internet and try again.");b.disabled=false;b.textContent="Try again";$("laterUpdate").classList.remove("hidden")}};
-window.addEventListener("load",()=>setTimeout(()=>checkForPulseUpdate(false),1800));
-if("serviceWorker"in navigator)navigator.serviceWorker.register("./sw.js");
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let user = null;
+let me = null;
+let peer = null;
+let cid = null;
+let selectedAvatarKey = "male_01";
+let profileEditMode = false;
+let currentMessages = [];
+let chatItems = [];
+let unsubscribeChats = null;
+let unsubscribeMessages = null;
+let activeMessage = null;
+let reply = null;
+let lastRenderSignature = "";
+let splashResolved = false;
+let updateCheckTimer = null;
+let appVersion = VERSION;
+
+const avatarIds = [...Array(8)].map((_, i) => `male_${String(i + 1).padStart(2, "0")}`)
+  .concat([...Array(8)].map((_, i) => `female_${String(i + 1).padStart(2, "0")}`));
+
+const avatarCatalog = Object.fromEntries(avatarIds.map((key, i) => {
+  const male = key.startsWith("male");
+  const malePalette = ["#0f172a", "#1d4ed8", "#0ea5e9", "#2563eb", "#4338ca", "#14b8a6", "#0f766e", "#1e40af"];
+  const femalePalette = ["#4c1d95", "#db2777", "#be185d", "#7c3aed", "#d946ef", "#ec4899", "#8b5cf6", "#f43f5e"];
+  const bg = male ? malePalette[i % malePalette.length] : femalePalette[i % femalePalette.length];
+  const accent = male ? "#dbeafe" : "#ffe4f1";
+  const mark = male ? "M" : "F";
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+    <defs>
+      <linearGradient id="g${i}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="${bg}"/>
+        <stop offset="1" stop-color="${male ? "#111827" : "#2a0f3a"}"/>
+      </linearGradient>
+    </defs>
+    <rect width="120" height="120" rx="60" fill="url(#g${i})"/>
+    <circle cx="60" cy="46" r="16" fill="${accent}" opacity=".96"/>
+    <path d="M28 104c6-18 20-28 32-28s26 10 32 28" fill="${accent}" opacity=".96"/>
+    <circle cx="48" cy="44" r="3" fill="${bg}" opacity=".35"/>
+    <circle cx="72" cy="44" r="3" fill="${bg}" opacity=".35"/>
+    <path d="M49 52c5 4 17 4 22 0" stroke="${bg}" stroke-width="4" stroke-linecap="round" fill="none" opacity=".28"/>
+    <text x="60" y="93" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="26" font-weight="800" fill="rgba(255,255,255,.28)">${mark}</text>
+  </svg>`;
+  return [key, `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`];
+}));
+
+function avatarUrl(key) {
+  return avatarCatalog[key] || avatarCatalog.male_01;
+}
+
+function defaultAvatarKey(name) {
+  const n = (name || "").trim().toLowerCase();
+  return n && /[aeiou]$/.test(n) ? "female_01" : "male_01";
+}
+
+function setAvatar(el, profile) {
+  if (!el) return;
+  el.replaceChildren();
+  const src = profile?.avatarKey ? avatarUrl(profile.avatarKey) : null;
+  if (src) {
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    el.append(img);
+  } else {
+    el.textContent = initial(profile?.displayName);
+  }
+}
+
+function initial(name) {
+  return (name || "U")[0].toUpperCase();
+}
+
+function setAvatarPreview(el, key, label) {
+  if (!el) return;
+  el.replaceChildren();
+  const img = document.createElement("img");
+  img.src = avatarUrl(key);
+  img.alt = label || "";
+  el.append(img);
+}
+
+function renderAvatarPicker(containerId, selectedKey, onPick) {
+  const el = $(containerId);
+  if (!el) return;
+  el.replaceChildren();
+
+  const groups = [
+    ["Male avatars", avatarIds.filter(x => x.startsWith("male"))],
+    ["Female avatars", avatarIds.filter(x => x.startsWith("female"))]
+  ];
+
+  for (const [label, ids] of groups) {
+    const groupLabel = document.createElement("div");
+    groupLabel.className = "groupLabel";
+    groupLabel.textContent = label;
+    el.append(groupLabel);
+
+    const grid = document.createElement("div");
+    grid.className = "avatarPickerGrid";
+    grid.style.display = "grid";
+    grid.style.gridTemplateColumns = "repeat(auto-fill,minmax(64px,1fr))";
+    grid.style.gap = "8px";
+
+    ids.forEach(id => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "avatarChoice" + (id === selectedKey ? " selected" : "");
+      const img = document.createElement("img");
+      img.src = avatarUrl(id);
+      img.alt = id;
+      button.append(img);
+      button.onclick = () => onPick(id);
+      grid.append(button);
+    });
+
+    el.append(grid);
+  }
+}
+
+function authStatus(text) {
+  const el = $("authStatus");
+  if (el) el.textContent = text;
+}
+
+function verifyStatus(text) {
+  const el = $("verifyStatus");
+  if (el) el.textContent = text;
+}
+
+function profileStatus(text) {
+  const el = $("profileStatus");
+  if (el) el.textContent = text;
+}
+
+function profileEditStatus(text) {
+  const el = $("profileEditStatus");
+  if (el) el.textContent = text;
+}
+
+function updateStatus(text) {
+  const el = $("updateStatus");
+  if (el) el.textContent = text;
+}
+
+function localPrefs() {
+  const p = JSON.parse(localStorage.getItem("pulsePrefs:" + (user?.uid || "anon")) || "{}");
+  return {
+    readReceipts: p.readReceipts ?? true,
+    showOnline: p.showOnline ?? true,
+    pinned: p.pinned || [],
+    blocked: p.blocked || [],
+    deletedChats: p.deletedChats || [],
+    deletedMessages: p.deletedMessages || [],
+    stars: p.stars || []
+  };
+}
+
+function savePrefs(p) {
+  localStorage.setItem("pulsePrefs:" + user.uid, JSON.stringify(p));
+}
+
+function resolveSplash() {
+  if (splashResolved) return;
+  splashResolved = true;
+  document.documentElement.classList.remove("pulse-auth-pending");
+  $("authSplash")?.classList.add("hidden");
+}
+
+function chatId(a, b) {
+  return [a, b].sort().join("_");
+}
+
+function digits(v) {
+  return String(v || "").replace(/\D/g, "");
+}
+
+function phoneMatch(saved, countryCode, raw) {
+  const local = digits(raw).replace(/^0+/, "");
+  if (!local || local.length < 7) return false;
+  const savedDigits = digits(saved).replace(/^0+/, "");
+  const countryDigits = digits(countryCode);
+  const wanted = countryDigits + local;
+  return savedDigits === wanted || savedDigits === local || savedDigits.endsWith(local) || wanted.endsWith(savedDigits);
+}
+
+async function loadVersion() {
+  try {
+    const res = await fetch("version.json", { cache: "no-store" });
+    const data = await res.json();
+    return String(data.version || VERSION);
+  } catch {
+    return VERSION;
+  }
+}
+
+async function checkForUpdates(manual = false) {
+  try {
+    const latest = await loadVersion();
+    appVersion = latest;
+    if (latest !== VERSION) {
+      const popup = $("updatePopupView");
+      if (popup) {
+        popup.dataset.version = latest;
+        popup.classList.remove("hidden");
+      }
+      updateStatus(`Update available · v${latest}`);
+    } else {
+      if (manual) updateStatus(`Pulse is up to date · v${VERSION}`);
+    }
+  } catch (err) {
+    console.error(err);
+    if (manual) updateStatus("Could not check for updates. Try again.");
+  }
+}
+
+async function installUpdate() {
+  const popup = $("updatePopupView");
+  const bar = $("updateProgressBar");
+  const btn = $("installUpdateBtn");
+  if (!popup || !bar || !btn) return;
+  btn.disabled = true;
+  bar.style.width = "12%";
+  try {
+    bar.style.width = "40%";
+    await checkForUpdates(false);
+    bar.style.width = "80%";
+    if (popup.dataset.version) {
+      localStorage.setItem("pulseSeenUpdate:" + popup.dataset.version, "seen");
+    }
+    bar.style.width = "100%";
+    setTimeout(() => window.location.reload(), 350);
+  } catch (err) {
+    console.error(err);
+    bar.style.width = "0%";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function openSettings() {
+  const prefs = localPrefs();
+  if ($("readReceiptsToggle")) $("readReceiptsToggle").checked = prefs.readReceipts;
+  if ($("showOnlineToggle")) $("showOnlineToggle").checked = prefs.showOnline;
+  try { syncProfileFields(); } catch (err) { console.error(err); }
+  show("settingsView");
+  renderBlockedUsers();
+  const q = chatItems.length ? chatItems.length : 0;
+  const m = currentMessages.length ? currentMessages.length : 0;
+  const ls = $("localStats");
+  if (ls) ls.textContent = `${m} local messages · ${q} chats`;
+}
+
+function setProfileEditMode(on) {
+  profileEditMode = !!on;
+  const view = $("profileCardView");
+  const panel = $("profileEditPanel");
+  const actions = $("profileEditActions");
+  const btn = $("editProfileBtn");
+  if (view) view.classList.toggle("hidden", profileEditMode);
+  if (panel) panel.classList.toggle("hidden", !profileEditMode);
+  if (actions) actions.classList.toggle("hidden", !profileEditMode);
+  if (btn) btn.textContent = profileEditMode ? "Done" : "Edit";
+  if (profileEditMode) {
+    $("editDisplayName")?.focus();
+  }
+}
+
+function syncAvatarUI() {
+  setAvatarPreview($("profileSelectedAvatarPreview"), selectedAvatarKey, me?.displayName);
+  setAvatarPreview($("settingsSelectedAvatarPreview"), selectedAvatarKey, me?.displayName);
+  setAvatar($("homeAvatar"), { avatarKey: selectedAvatarKey, displayName: me?.displayName });
+  setAvatar($("settingsAvatar"), { avatarKey: selectedAvatarKey, displayName: me?.displayName });
+  renderAvatarPicker("profileAvatarPicker", selectedAvatarKey, key => {
+    selectedAvatarKey = key;
+    syncAvatarUI();
+  });
+  renderAvatarPicker("settingsAvatarPicker", selectedAvatarKey, key => {
+    selectedAvatarKey = key;
+    syncAvatarUI();
+  });
+}
+
+function syncProfileFields() {
+  if (!me) return;
+  selectedAvatarKey = me.avatarKey || selectedAvatarKey || defaultAvatarKey(me.displayName);
+  if ($("editDisplayName")) $("editDisplayName").value = me.displayName || "";
+  if ($("editAbout")) $("editAbout").value = me.about || "";
+  if ($("settingsName")) $("settingsName").textContent = me.displayName || "Profile";
+  if ($("settingsAbout")) $("settingsAbout").textContent = me.about || "Hey there! I am using Pulse.";
+  syncAvatarUI();
+  if (!profileEditMode) setProfileEditMode(false);
+}
+
+async function saveProfileEdits() {
+  const displayName = ($("editDisplayName")?.value || "").trim();
+  const about = ($("editAbout")?.value || "").trim();
+  if (displayName.length < 2) throw Error("Enter your name.");
+  if (about.length > 120) throw Error("About is too long.");
+  await updateDoc(doc(db, "users", user.uid), {
+    displayName,
+    about,
+    avatarKey: selectedAvatarKey,
+    updatedAt: serverTimestamp()
+  });
+  me = { ...me, displayName, about, avatarKey: selectedAvatarKey };
+  await setDoc(doc(db, "users", user.uid), me, { merge: true });
+  await syncChatList();
+  syncProfileFields();
+  renderChatList();
+}
+
+function setView(viewId) {
+  const views = ["authView", "verifyEmailView", "profileView", "homeView", "chatView", "settingsView", "newChatView", "messageActionsView", "updatePopupView"];
+  for (const id of views) {
+    const el = $(id);
+    if (el) el.classList.toggle("hidden", id !== viewId);
+  }
+}
+
+function openAuth() { setView("authView"); }
+function openVerify() { setView("verifyEmailView"); }
+function openProfile() { setView("profileView"); }
+function openHome() { showHomeView(); }
+function openChatView() { setView("chatView"); }
+function openSettingsView() { setView("settingsView"); }
+function openNewChatView() { setView("newChatView"); }
+
+async function ensureLocalChatCache() {
+  // simple, no-op placeholder for future use
+}
+
+async function renderBlockedUsers() {
+  const box = $("blockedUsers");
+  if (!box) return;
+  const prefs = localPrefs();
+  box.replaceChildren();
+  if (!prefs.blocked.length) {
+    const s = document.createElement("small");
+    s.textContent = "No blocked users.";
+    box.append(s);
+    return;
+  }
+  for (const uid of prefs.blocked) {
+    const u = await getDoc(doc(db, "users", uid));
+    const p = u.exists() ? u.data() : { displayName: "Unknown", avatarKey: "male_01" };
+    const row = document.createElement("div");
+    row.className = "row";
+    const av = document.createElement("div");
+    av.className = "avatar textAvatar";
+    setAvatar(av, p);
+    const copy = document.createElement("div");
+    copy.className = "copy";
+    const b = document.createElement("b");
+    b.textContent = p.displayName || "Unknown";
+    const sm = document.createElement("small");
+    sm.textContent = "Blocked";
+    copy.append(b, sm);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "miniAction";
+    btn.textContent = "Unblock";
+    btn.onclick = () => {
+      const np = localPrefs();
+      np.blocked = np.blocked.filter(x => x !== uid);
+      savePrefs(np);
+      renderBlockedUsers();
+    };
+    row.append(av, copy, btn);
+    box.append(row);
+  }
+}
+
+function renderChatList() {
+  const box = $("chatList");
+  if (!box) return;
+  const prefs = localPrefs();
+  const visible = chatItems.filter(x => !prefs.deletedChats.includes(x.p.uid));
+  box.replaceChildren();
+  visible.sort((a, b) => {
+    const ap = prefs.pinned.includes(a.p.uid);
+    const bp = prefs.pinned.includes(b.p.uid);
+    if (ap !== bp) return Number(bp) - Number(ap);
+    return (b.updatedAtMs || 0) - (a.updatedAtMs || 0);
+  });
+  for (const item of visible) {
+    const row = document.createElement("div");
+    row.className = "row" + (prefs.pinned.includes(item.p.uid) ? " pinned" : "");
+    const av = document.createElement("div");
+    av.className = "avatar textAvatar";
+    setAvatar(av, item.p);
+    const copy = document.createElement("div");
+    copy.className = "copy";
+    const top = document.createElement("div");
+    top.className = "rowTop";
+    const b = document.createElement("b");
+    b.textContent = (prefs.pinned.includes(item.p.uid) ? "📌 " : "") + (item.p.displayName || "Unknown");
+    const tm = document.createElement("small");
+    tm.textContent = item.time || "";
+    top.append(b, tm);
+    const desc = document.createElement("small");
+    desc.textContent = item.last || item.p.phone || "";
+    copy.append(top, desc);
+    row.append(av, copy);
+    if (item.unread) {
+      const badge = document.createElement("span");
+      badge.className = "badge";
+      badge.textContent = item.unread > 99 ? "99+" : String(item.unread);
+      row.append(badge);
+    }
+    row.onclick = () => openChat(item.p);
+    box.append(row);
+  }
+}
+
+async function syncChatList() {
+  const q = query(collection(db, "chats"), where("members", "array-contains", user.uid));
+  if (unsubscribeChats) unsubscribeChats();
+  unsubscribeChats = onSnapshot(q, async snapshot => {
+    const items = [];
+    for (const d of snapshot.docs) {
+      const chat = d.data();
+      const otherId = (chat.members || []).find(x => x !== user.uid);
+      if (!otherId) continue;
+      const otherSnap = await getDoc(doc(db, "users", otherId));
+      if (!otherSnap.exists()) continue;
+      const other = otherSnap.data();
+      const readSnap = await getDoc(doc(db, "chats", d.id, "readState", user.uid));
+      const unread = readSnap.exists() ? (readSnap.data().unread || 0) : 0;
+      items.push({
+        p: other,
+        unread,
+        last: chat.lastMessage || "Start chatting",
+        updatedAtMs: chat.updatedAt?.toMillis?.() || 0,
+        time: chat.updatedAt?.toDate?.()?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) || ""
+      });
+    }
+    chatItems = items;
+    renderChatList();
+  });
+}
+
+async function openChat(p) {
+  peer = p;
+  cid = chatId(user.uid, p.uid);
+  lastRenderSignature = "";
+  await setDoc(doc(db, "chats", cid), {
+    members: [user.uid, p.uid],
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  await setDoc(doc(db, "chats", cid, "readState", user.uid), { unread: 0 }, { merge: true });
+  const av = $("peerAvatar");
+  if (av) setAvatar(av, p);
+  if ($("peerName")) $("peerName").textContent = p.displayName || "Chat";
+  if ($("peerMeta")) $("peerMeta").textContent = p.phone || "";
+  openChatView();
+  $("messageActionsView")?.classList.add("hidden");
+  $("newChatView")?.classList.add("hidden");
+  listenMessages();
+}
+
+function messageSignature(items) {
+  return items.map(m => `${m.id}:${m.text}:${m.status}:${m.editedAt?.seconds || ""}:${m.replyTo || ""}`).join("|");
+}
+
+function renderMessages(items) {
+  const box = $("messages");
+  if (!box) return;
+  const prefs = localPrefs();
+  const visibleItems = items.filter(m => !prefs.deletedMessages.includes(m.id));
+  const filtered = visibleItems;
+  const sig = messageSignature(filtered);
+  if (sig === lastRenderSignature) return;
+  lastRenderSignature = sig;
+  const frag = document.createDocumentFragment();
+  for (const m of filtered) {
+    const article = document.createElement("article");
+    article.className = "msg" + (m.senderId === user.uid ? " mine" : "");
+    if (m.replyText) {
+      const q = document.createElement("div");
+      q.className = "quoted";
+      q.textContent = m.replyText;
+      article.append(q);
+    }
+    const body = document.createElement("div");
+    body.className = "msgBody";
+    body.textContent = m.text || "";
+    article.append(body);
+    if (m.reactions && Object.keys(m.reactions).length) {
+      const reactionBar = document.createElement("div");
+      reactionBar.className = "reactionBar";
+      for (const [emoji, uids] of Object.entries(m.reactions)) {
+        if (uids?.length) {
+          const span = document.createElement("span");
+          span.className = "reaction";
+          span.textContent = `${emoji} ${uids.length}`;
+          reactionBar.append(span);
+        }
+      }
+      article.append(reactionBar);
+    }
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    const created = m.createdAt?.toDate?.() || (m.createdMs ? new Date(m.createdMs) : null);
+    meta.textContent = created && !Number.isNaN(created) ? created.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Queued";
+    if (m.senderId === user.uid && !m.queued) {
+      const tick = document.createElement("span");
+      tick.className = "ticks" + (m.status === "seen" ? " seen" : "");
+      tick.textContent = m.status === "seen" ? "✓✓" : (m.status === "delivered" ? "✓✓" : "✓");
+      meta.append(tick);
+    }
+    article.append(meta);
+
+    let holdTimer = null;
+    article.onpointerdown = () => {
+      holdTimer = setTimeout(() => openMessageActions(m), 500);
+    };
+    article.onpointerup = article.onpointercancel = article.onpointermove = () => {
+      if (holdTimer) clearTimeout(holdTimer);
+    };
+    article.oncontextmenu = ev => {
+      ev.preventDefault();
+      openMessageActions(m);
+    };
+
+    frag.append(article);
+  }
+  box.replaceChildren(frag);
+  requestAnimationFrame(() => {
+    box.scrollTop = box.scrollHeight;
+  });
+}
+
+function openMessageActions(m) {
+  activeMessage = m;
+  const reactions = $("quickReactions");
+  if (reactions) {
+    reactions.replaceChildren();
+    ["👍", "❤️", "😂", "😮", "😢", "🙏"].forEach(emoji => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = emoji;
+      btn.onclick = () => reactMessage(m, emoji);
+      reactions.append(btn);
+    });
+  }
+  const deleteEveryoneBtn = $("deleteEveryoneBtn");
+  if (deleteEveryoneBtn) deleteEveryoneBtn.classList.toggle("hidden", m.senderId !== user.uid);
+  const popup = $("messageActionsView");
+  if (popup) popup.classList.remove("hidden");
+}
+
+async function reactMessage(m, emoji) {
+  const reactions = structuredClone(m.reactions || {});
+  const uids = reactions[emoji] || [];
+  const idx = uids.indexOf(user.uid);
+  if (idx >= 0) uids.splice(idx, 1);
+  else uids.push(user.uid);
+  reactions[emoji] = uids;
+  await updateDoc(doc(db, "chats", cid, "messages", m.id), { reactions });
+  $("messageActionsView")?.classList.add("hidden");
+}
+
+function replyToMessage(m) {
+  reply = { id: m.id, text: m.text || "", senderId: m.senderId };
+  if ($("replyName")) $("replyName").textContent = m.senderId === user.uid ? "You" : (peer?.displayName || "User");
+  if ($("replyText")) $("replyText").textContent = m.text || "Message";
+  $("replyBar")?.classList.remove("hidden");
+}
+
+async function deleteForEveryone(m) {
+  if (!confirm("Delete this message for everyone?")) return;
+  await deleteDoc(doc(db, "chats", cid, "messages", m.id));
+}
+
+function deleteForMe(m) {
+  const prefs = localPrefs();
+  if (!prefs.deletedMessages.includes(m.id)) prefs.deletedMessages.push(m.id);
+  savePrefs(prefs);
+  lastRenderSignature = "";
+  renderMessages(currentMessages);
+}
+
+async function copyMessage(m) {
+  try {
+    await navigator.clipboard.writeText(m.text || "");
+  } catch {}
+  $("messageActionsView")?.classList.add("hidden");
+}
+
+async function sendMessage(text) {
+  const payload = {
+    text,
+    senderId: user.uid,
+    createdAt: serverTimestamp(),
+    status: "sent"
+  };
+  if (reply) {
+    payload.replyTo = reply.id;
+    payload.replyText = reply.text;
+  }
+  const ref = await addDoc(collection(db, "chats", cid, "messages"), payload);
+  await updateDoc(doc(db, "chats", cid), {
+    lastMessage: text,
+    updatedAt: serverTimestamp()
+  });
+  await setDoc(doc(db, "chats", cid, "readState", peer.uid), { unread: increment(1) }, { merge: true });
+  setTimeout(() => updateDoc(ref, { status: "delivered" }).catch(() => {}), 300);
+  if ($("replyBar")) $("replyBar").classList.add("hidden");
+  reply = null;
+}
+
+function listenMessages() {
+  if (unsubscribeMessages) unsubscribeMessages();
+  const q = query(collection(db, "chats", cid, "messages"), orderBy("createdAt", "asc"), limit(300));
+  unsubscribeMessages = onSnapshot(q, async snapshot => {
+    currentMessages = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderMessages(currentMessages);
+
+    const prefs = localPrefs();
+    if (prefs.readReceipts && document.visibilityState === "visible" && !$("chatView").classList.contains("hidden")) {
+      for (const d of snapshot.docs) {
+        const m = d.data();
+        if (m.senderId !== user.uid && m.status !== "seen") {
+          updateDoc(d.ref, { status: "seen", seenAt: serverTimestamp() }).catch(() => {});
+        }
+      }
+    }
+    await setDoc(doc(db, "chats", cid, "readState", user.uid), { unread: 0 }, { merge: true });
+  });
+}
+
+async function searchUsersByPhone(countryCode, raw) {
+  const local = digits(raw);
+  if (local.length < 7) return [];
+  const snap = await getDocs(collection(db, "users"));
+  const out = [];
+  for (const d of snap.docs) {
+    const p = { uid: d.id, ...d.data() };
+    if (phoneMatch(p.phone, countryCode, raw)) out.push(p);
+  }
+  return out;
+}
+
+async function openNewChat() {
+  $("searchPhoneInput") && ($("searchPhoneInput").value = "");
+  $("searchResults")?.replaceChildren();
+  openNewChatView();
+}
+
+function renderSearchResults(results) {
+  const box = $("searchResults");
+  if (!box) return;
+  box.replaceChildren();
+  if (!results.length) {
+    const s = document.createElement("small");
+    s.textContent = "No Pulse user found.";
+    box.append(s);
+    return;
+  }
+  for (const p of results) {
+    if (p.uid === user.uid) continue;
+    const row = document.createElement("div");
+    row.className = "row";
+    const av = document.createElement("div");
+    av.className = "avatar textAvatar";
+    setAvatar(av, p);
+    const copy = document.createElement("div");
+    copy.className = "copy";
+    const b = document.createElement("b");
+    b.textContent = p.displayName || "User";
+    const sm = document.createElement("small");
+    sm.textContent = p.about || p.phone || "";
+    copy.append(b, sm);
+    row.append(av, copy);
+    row.onclick = async () => {
+      $("newChatView")?.classList.add("hidden");
+      await openChat(p);
+    };
+    box.append(row);
+  }
+}
+
+async function saveProfileSetup() {
+  const displayName = ($("displayName")?.value || "").trim();
+  const phone = (($("countryCode")?.value || "") + digits($("phone")?.value || "")).trim();
+  const about = ($("about")?.value || "").trim();
+  if (displayName.length < 2) throw Error("Enter your name.");
+  if (digits(phone).length < 8) throw Error("Enter a valid mobile number.");
+  const existing = await getDocs(collection(db, "users"));
+  for (const d of existing.docs) {
+    if (d.id !== user.uid) {
+      const p = d.data();
+      if (String(p.phone || "") === phone) throw Error("Mobile number already registered.");
+    }
+  }
+  selectedAvatarKey = selectedAvatarKey || defaultAvatarKey(displayName);
+  const profile = {
+    uid: user.uid,
+    email: user.email,
+    displayName,
+    phone,
+    about,
+    avatarKey: selectedAvatarKey,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  };
+  me = profile;
+  await setDoc(doc(db, "users", user.uid), profile, { merge: true });
+  syncProfileFields();
+  showHomeView();
+  await syncChatList();
+}
+
+async function loadProfile() {
+  const snap = await getDoc(doc(db, "users", user.uid));
+  if (!snap.exists()) {
+    selectedAvatarKey = defaultAvatarKey(user.email?.split("@")[0]);
+    syncAvatarUI();
+    openProfile();
+    return;
+  }
+  me = snap.data();
+  selectedAvatarKey = me.avatarKey || defaultAvatarKey(me.displayName);
+  syncProfileFields();
+  showHomeView();
+  await syncChatList();
+}
+
+function startVerifyMode() {
+  if ($("verifyMessage")) {
+    $("verifyMessage").textContent = `We sent a verification link to ${user.email}. Open the email, tap the verification link, then return to Pulse. Please check your spam folder for the verification link.`;
+  }
+  openVerify();
+}
+
+async function setupAuthState() {
+  onAuthStateChanged(auth, async u => {
+    user = u;
+    try {
+      if (!u) {
+        openAuth();
+        resolveSplash();
+        return;
+      }
+      await u.getIdToken(true);
+      if (!u.emailVerified) {
+        startVerifyMode();
+        resolveSplash();
+        return;
+      }
+      await loadProfile();
+      resolveSplash();
+    } catch (err) {
+      console.error("Startup failed", err);
+      if (u) showHomeView(); else openAuth();
+      resolveSplash();
+    }
+  });
+}
+
+bind("signinBtn", "click", async () => {
+  try {
+    authStatus("Signing in…");
+    await signInWithEmailAndPassword(auth, $("email").value.trim(), $("password").value);
+    authStatus("");
+  } catch (err) {
+    authStatus(err.message || "Could not sign in.");
+  }
+});
+
+bind("signupBtn", "click", async () => {
+  try {
+    authStatus("Creating account…");
+    const cred = await createUserWithEmailAndPassword(auth, $("email").value.trim(), $("password").value);
+    await sendEmailVerification(cred.user);
+    authStatus("");
+  } catch (err) {
+    authStatus(err.message || "Could not create account.");
+  }
+});
+
+bind("forgotPasswordBtn", "click", async () => {
+  const email = ($("email")?.value || auth.currentUser?.email || "").trim();
+  if (!email) return authStatus("Enter your email address first.");
+  try {
+    authStatus("Sending password reset email…");
+    await sendPasswordResetEmail(auth, email);
+    authStatus("Password reset email sent. Check your inbox and spam folder.");
+  } catch (err) {
+    const code = err?.code || "";
+    const messages = {
+      "auth/invalid-email": "Enter a valid email address.",
+      "auth/user-not-found": "No account found with this email.",
+      "auth/unauthorized-domain": "This site is not authorized in Firebase.",
+      "auth/network-request-failed": "Check your internet connection and try again.",
+      "auth/too-many-requests": "Too many attempts. Try again later."
+    };
+    authStatus(messages[code] || err.message || "Could not send reset email.");
+  }
+});
+
+bind("verifiedBtn", "click", async () => {
+  try {
+    verifyStatus("Checking verification…");
+    await reload(auth.currentUser);
+    user = auth.currentUser;
+    if (!user.emailVerified) {
+      verifyStatus("Email is not verified yet. Open the verification link first.");
+      return;
+    }
+    verifyStatus("Email verified ✓");
+    await loadProfile();
+    showHomeView();
+  } catch (err) {
+    verifyStatus(err.message || "Could not check verification.");
+  }
+});
+
+bind("resendVerificationBtn", "click", async () => {
+  try {
+    verifyStatus("Sending verification email…");
+    await sendEmailVerification(auth.currentUser);
+    verifyStatus("Verification email sent. Check Inbox and Spam.");
+  } catch (err) {
+    verifyStatus(err.message || "Could not resend verification email.");
+  }
+});
+
+bind("verifyLogoutBtn", "click", async () => {
+  await signOut(auth);
+});
+
+bind("saveProfileBtn", "click", async () => {
+  try {
+    profileStatus("Saving…");
+    await saveProfileSetup();
+    profileStatus("Saved ✓");
+  } catch (err) {
+    profileStatus(err.message || "Could not save profile.");
+  }
+});
+
+bind("newChatBtn", "click", openNewChat);
+bind("closeNewChatBtn", "click", () => setView("homeView"));
+bind("searchPhoneBtn", "click", async () => {
+  const country = $("searchCountryCode")?.value || "+91";
+  const raw = $("searchPhoneInput")?.value || "";
+  const box = $("searchResults");
+  if (box) box.textContent = "Searching Pulse users…";
+  const results = await searchUsersByPhone(country, raw);
+  renderSearchResults(results);
+});
+bind("backBtn", "click", () => openHome());
+bind("closeSettingsBtn", "click", () => openHome());
+bind("settingsBtn", "click", openSettings);
+bind("editProfileBtn", "click", () => { setProfileEditMode(!profileEditMode); syncProfileFields(); });
+bind("cancelProfileEditBtn", "click", () => { setProfileEditMode(false); syncProfileFields(); });
+bind("saveProfileEditBtn", "click", async () => {
+  try {
+    profileEditStatus("Saving…");
+    await saveProfileEdits();
+    setProfileEditMode(false);
+    profileEditStatus("Saved ✓");
+  } catch (err) {
+    profileEditStatus(err.message || "Could not save profile.");
+  }
+});
+bind("settingsSelectedAvatarBtn", "click", () => setProfileEditMode(true));
+bind("profileSelectedAvatarBtn", "click", () => {});
+bind("cancelReplyBtn", "click", () => {
+  reply = null;
+  $("replyBar")?.classList.add("hidden");
+});
+bind("messageForm", "submit", async ev => {
+  ev.preventDefault();
+  const text = ($("messageInput")?.value || "").trim();
+  if (!text || !user || !cid) return;
+  $("messageInput").value = "";
+  try {
+    await sendMessage(text);
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Could not send message.");
+  }
+});
+bind("chatSearchBtn", "click", async () => {
+  const term = prompt("Search in this chat");
+  if (!term) return;
+  const items = currentMessages.filter(m => String(m.text || "").toLowerCase().includes(term.toLowerCase()));
+  renderMessages(items);
+});
+bind("readReceiptsToggle", "change", () => {
+  const prefs = localPrefs();
+  prefs.readReceipts = $("readReceiptsToggle").checked;
+  savePrefs(prefs);
+});
+bind("showOnlineToggle", "change", () => {
+  const prefs = localPrefs();
+  prefs.showOnline = $("showOnlineToggle").checked;
+  savePrefs(prefs);
+});
+bind("refreshBlockedBtn", "click", renderBlockedUsers);
+bind("checkUpdatesBtn", "click", () => checkForUpdates(true));
+bind("installUpdateBtn", "click", installUpdate);
+bind("laterUpdateBtn", "click", () => {
+  const popup = $("updatePopupView");
+  const v = popup?.dataset.version;
+  if (v) localStorage.setItem("pulseSeenUpdate:" + v, "seen");
+  popup?.classList.add("hidden");
+});
+bind("syncNowBtn", "click", async () => {
+  await syncChatList();
+  alert("Synced queued messages.");
+});
+bind("logoutBtn", "click", async () => {
+  await signOut(auth);
+});
+
+bind("chatsTabBtn", "click", () => {
+  $("chatsTabBtn")?.classList.add("active");
+  $("updatesTabBtn")?.classList.remove("active");
+  $("chatsPanel")?.classList.remove("hidden");
+  $("updatesPanel")?.classList.add("hidden");
+});
+bind("updatesTabBtn", "click", () => {
+  $("updatesTabBtn")?.classList.add("active");
+  $("chatsTabBtn")?.classList.remove("active");
+  $("chatsPanel")?.classList.add("hidden");
+  $("updatesPanel")?.classList.remove("hidden");
+});
+
+bind("messageActionsView", "click", async ev => {
+  const btn = ev.target.closest("[data-msg-action]");
+  if (!btn || !activeMessage) return;
+  const action = btn.dataset.msgAction;
+  if (action === "reply") { replyToMessage(activeMessage); $("messageActionsView")?.classList.add("hidden"); }
+  if (action === "copy") await copyMessage(activeMessage);
+  if (action === "deleteMe") deleteForMe(activeMessage);
+  if (action === "deleteEveryone") await deleteForEveryone(activeMessage);
+  if (action === "cancel") $("messageActionsView")?.classList.add("hidden");
+  if (action !== "cancel") $("messageActionsView")?.classList.add("hidden");
+});
+
+async function loadChatsAndMessages() {
+  if (unsubscribeChats) unsubscribeChats();
+  if (unsubscribeMessages) unsubscribeMessages();
+  await syncChatList();
+}
+
+function showHomeView() {
+  setView("homeView");
+  if ($("chatsTabBtn")) $("chatsTabBtn").classList.add("active");
+  if ($("updatesTabBtn")) $("updatesTabBtn").classList.remove("active");
+  if (me && $("homeAvatar")) setAvatar($("homeAvatar"), me);
+}
+
+bind("profileSelectedAvatarBtn", "click", () => {
+  if ($("profileAvatarPicker")) $("profileAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+bind("settingsSelectedAvatarBtn", "click", () => {
+  if ($("settingsAvatarPicker")) $("settingsAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+(async () => {
+  await checkForUpdates(false);
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(console.error);
+  }
+  await setupAuthState();
+})();
