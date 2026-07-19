@@ -1,4 +1,4 @@
 {
-  "version": "8.6.7",
-  "message": "Pulse 8.6.7 adds built-in avatars, fixes inline profile editing, and keeps profile pictures upload-free."
+  "version": "8.6.8",
+  "message": "Pulse 8.6.8 fixes inline profile editing startup errors and forgot password handling."
 }
