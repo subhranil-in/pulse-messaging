@@ -1,4 +1,4 @@
 {
-  "version": "8.6.9",
-  "message": "Pulse 8.6.9 fixes startup null bindings and syntax errors."
+  "version": "8.6.10",
+  "message": "Pulse 8.6.10 restores the stable app and fixes profile edit / password reset startup issues."
 }
