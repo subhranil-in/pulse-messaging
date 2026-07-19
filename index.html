@@ -54,12 +54,13 @@
       <h1>Your profile</h1>
       <div class="card profileCardSetup">
         <div class="avatarChooser">
-          <button id="profileSelectedAvatarBtn" type="button" class="profilePhotoBtn">
-            <span id="profileSelectedAvatarPreview">＋</span>
-            <b>Selected avatar</b>
+          <button id="profilePhotoUploadBtn" type="button" class="profilePhotoBtn">
+            <span id="profilePhotoUploadPreview">＋</span>
+            <b>Upload picture</b>
           </button>
-          <div id="profileAvatarPicker" class="avatarPicker" style="display:none"></div>
-          <small>Choose a built-in avatar only.</small>
+          <input id="profilePhotoUploadInput" type="file" accept="image/*" hidden>
+          <div id="profileAvatarPicker" class="avatarPicker"></div>
+          <small>Upload a custom picture or choose a built-in avatar.</small>
         </div>
         <input id="displayName" maxlength="40" placeholder="Your name" />
         <div class="phone">
@@ -168,12 +169,13 @@
 
           <div id="profileEditPanel" class="profileEditPanel hidden">
             <div class="avatarChooser">
-              <button id="settingsSelectedAvatarBtn" type="button" class="profilePhotoBtn profilePhotoEdit">
-                <span id="settingsSelectedAvatarPreview">＋</span>
-                <b>Selected avatar</b>
+              <button id="settingsPhotoUploadBtn" type="button" class="profilePhotoBtn profilePhotoEdit">
+                <span id="settingsPhotoUploadPreview">＋</span>
+                <b>Upload picture</b>
               </button>
-              <div id="settingsAvatarPicker" class="avatarPicker" style="display:none"></div>
-              <small>Choose a built-in avatar only.</small>
+              <input id="settingsPhotoUploadInput" type="file" accept="image/*" hidden>
+              <div id="settingsAvatarPicker" class="avatarPicker"></div>
+              <small>Upload a custom picture or choose a built-in avatar.</small>
             </div>
             <input id="editDisplayName" class="profileEditInput" maxlength="40" placeholder="Username" />
             <textarea id="editAbout" class="profileEditTextarea" maxlength="120" placeholder="About"></textarea>

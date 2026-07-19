@@ -1,4 +1,4 @@
 {
-  "version": "9.0.0",
-  "message": "Pulse 9.0.0 rebuilt from scratch with built-in avatars and stable inline profile editing."
+  "version": "9.0.1",
+  "message": "Pulse 9.0.1 fixes profile picture upload handling."
 }

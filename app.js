@@ -37,7 +37,7 @@ const firebaseConfig = {
   appId: "1:89142546151:web:3f90bbd29a2341377d5c42"
 };
 
-const VERSION = "9.0.0";
+const VERSION = "9.0.1";
 const $ = id => document.getElementById(id);
 const bind = (id, evt, fn) => { const el = $(id); if (el) el.addEventListener(evt, fn); };
 const show = viewId => {
@@ -57,6 +57,7 @@ let me = null;
 let peer = null;
 let cid = null;
 let selectedAvatarKey = "male_01";
+let customProfilePhotoData = "";
 let profileEditMode = false;
 let currentMessages = [];
 let chatItems = [];
@@ -109,7 +110,7 @@ function defaultAvatarKey(name) {
 function setAvatar(el, profile) {
   if (!el) return;
   el.replaceChildren();
-  const src = profile?.avatarKey ? avatarUrl(profile.avatarKey) : null;
+  const src = profile?.photoData || (profile?.avatarKey ? avatarUrl(profile.avatarKey) : null);
   if (src) {
     const img = document.createElement("img");
     img.src = src;
@@ -131,13 +132,6 @@ function setAvatarPreview(el, key, label) {
   img.src = avatarUrl(key);
   img.alt = label || "";
   el.append(img);
-}
-
-
-function toggleAvatarPicker(id){
- const el=$(id);
- if(!el) return;
- el.style.display=(el.style.display==="none"||!el.style.display)?"grid":"none";
 }
 
 function renderAvatarPicker(containerId, selectedKey, onPick) {
@@ -176,6 +170,41 @@ function renderAvatarPicker(containerId, selectedKey, onPick) {
 
     el.append(grid);
   }
+}
+
+
+async function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(reader.error || new Error("Could not read image."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function bindPhotoUpload(buttonId, inputId, previewId) {
+  bind(buttonId, "click", () => {
+    $(inputId)?.click();
+  });
+  bind(inputId, "change", async () => {
+    const file = $(inputId)?.files?.[0];
+    if (!file) return;
+    try {
+      customProfilePhotoData = await fileToDataUrl(file);
+      const preview = $(previewId);
+      if (preview) {
+        preview.replaceChildren();
+        const img = document.createElement("img");
+        img.src = customProfilePhotoData;
+        img.alt = "";
+        preview.append(img);
+      }
+      syncAvatarUI();
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Could not upload image.");
+    }
+  });
 }
 
 function authStatus(text) {
@@ -327,16 +356,32 @@ function setProfileEditMode(on) {
 }
 
 function syncAvatarUI() {
-  setAvatarPreview($("profileSelectedAvatarPreview"), selectedAvatarKey, me?.displayName);
-  setAvatarPreview($("settingsSelectedAvatarPreview"), selectedAvatarKey, me?.displayName);
-  setAvatar($("homeAvatar"), { avatarKey: selectedAvatarKey, displayName: me?.displayName });
-  setAvatar($("settingsAvatar"), { avatarKey: selectedAvatarKey, displayName: me?.displayName });
+  const profilePreview = $("profilePhotoUploadPreview");
+  const settingsPreview = $("settingsPhotoUploadPreview");
+  if (profilePreview) {
+    profilePreview.replaceChildren();
+    const img = document.createElement("img");
+    img.src = customProfilePhotoData || avatarUrl(selectedAvatarKey);
+    img.alt = "";
+    profilePreview.append(img);
+  }
+  if (settingsPreview) {
+    settingsPreview.replaceChildren();
+    const img = document.createElement("img");
+    img.src = customProfilePhotoData || avatarUrl(selectedAvatarKey);
+    img.alt = "";
+    settingsPreview.append(img);
+  }
+  setAvatar($("homeAvatar"), { avatarKey: selectedAvatarKey, photoData: customProfilePhotoData, displayName: me?.displayName });
+  setAvatar($("settingsAvatar"), { avatarKey: selectedAvatarKey, photoData: customProfilePhotoData, displayName: me?.displayName });
   renderAvatarPicker("profileAvatarPicker", selectedAvatarKey, key => {
     selectedAvatarKey = key;
+    customProfilePhotoData = "";
     syncAvatarUI();
   });
   renderAvatarPicker("settingsAvatarPicker", selectedAvatarKey, key => {
     selectedAvatarKey = key;
+    customProfilePhotoData = "";
     syncAvatarUI();
   });
 }
@@ -344,6 +389,7 @@ function syncAvatarUI() {
 function syncProfileFields() {
   if (!me) return;
   selectedAvatarKey = me.avatarKey || selectedAvatarKey || defaultAvatarKey(me.displayName);
+  customProfilePhotoData = me.photoData || customProfilePhotoData || "";
   if ($("editDisplayName")) $("editDisplayName").value = me.displayName || "";
   if ($("editAbout")) $("editAbout").value = me.about || "";
   if ($("settingsName")) $("settingsName").textContent = me.displayName || "Profile";
@@ -361,9 +407,10 @@ async function saveProfileEdits() {
     displayName,
     about,
     avatarKey: selectedAvatarKey,
+    photoData: customProfilePhotoData || "",
     updatedAt: serverTimestamp()
   });
-  me = { ...me, displayName, about, avatarKey: selectedAvatarKey };
+  me = { ...me, displayName, about, avatarKey: selectedAvatarKey, photoData: customProfilePhotoData || "" };
   await setDoc(doc(db, "users", user.uid), me, { merge: true });
   await syncChatList();
   syncProfileFields();
@@ -754,7 +801,6 @@ async function saveProfileSetup() {
       if (String(p.phone || "") === phone) throw Error("Mobile number already registered.");
     }
   }
-  selectedAvatarKey = selectedAvatarKey || defaultAvatarKey(displayName);
   const profile = {
     uid: user.uid,
     email: user.email,
@@ -762,6 +808,7 @@ async function saveProfileSetup() {
     phone,
     about,
     avatarKey: selectedAvatarKey,
+    photoData: customProfilePhotoData || "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   };
@@ -782,6 +829,7 @@ async function loadProfile() {
   }
   me = snap.data();
   selectedAvatarKey = me.avatarKey || defaultAvatarKey(me.displayName);
+  customProfilePhotoData = me.photoData || "";
   syncProfileFields();
   showHomeView();
   await syncChatList();
@@ -901,6 +949,22 @@ bind("saveProfileBtn", "click", async () => {
   }
 });
 
+bind("profilePhotoUploadBtn", "click", () => $("profilePhotoUploadInput")?.click());
+bind("profilePhotoUploadInput", "change", async () => {
+  const file = $("profilePhotoUploadInput")?.files?.[0];
+  if (!file) return;
+  customProfilePhotoData = await fileToDataUrl(file);
+  syncAvatarUI();
+});
+
+bind("settingsPhotoUploadBtn", "click", () => $("settingsPhotoUploadInput")?.click());
+bind("settingsPhotoUploadInput", "change", async () => {
+  const file = $("settingsPhotoUploadInput")?.files?.[0];
+  if (!file) return;
+  customProfilePhotoData = await fileToDataUrl(file);
+  syncAvatarUI();
+});
+
 bind("newChatBtn", "click", openNewChat);
 bind("closeNewChatBtn", "click", () => setView("homeView"));
 bind("searchPhoneBtn", "click", async () => {
@@ -926,8 +990,8 @@ bind("saveProfileEditBtn", "click", async () => {
     profileEditStatus(err.message || "Could not save profile.");
   }
 });
-bind("settingsSelectedAvatarBtn", "click", () => setProfileEditMode(true));
-bind("profileSelectedAvatarBtn", "click", () => {});
+bind("settingsSelectedAvatarBtn", "click", () => $("settingsPhotoUploadInput")?.click());
+bind("profileSelectedAvatarBtn", "click", () => $("profilePhotoUploadInput")?.click());
 bind("cancelReplyBtn", "click", () => {
   reply = null;
   $("replyBar")?.classList.add("hidden");
@@ -1015,8 +1079,12 @@ function showHomeView() {
   if (me && $("homeAvatar")) setAvatar($("homeAvatar"), me);
 }
 
-bind("profileSelectedAvatarBtn","click",()=>toggleAvatarPicker("profileAvatarPicker"));
-bind("settingsSelectedAvatarBtn","click",()=>toggleAvatarPicker("settingsAvatarPicker"));
+bind("profileSelectedAvatarBtn", "click", () => {
+  if ($("profileAvatarPicker")) $("profileAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+bind("settingsSelectedAvatarBtn", "click", () => {
+  if ($("settingsAvatarPicker")) $("settingsAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
+});
 
 (async () => {
   await checkForUpdates(false);
