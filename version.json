@@ -1,4 +1,4 @@
 {
-  "version": "9.1.0",
-  "message": "Pulse 9.1.0 removes avatar gallery UI and uses custom profile pictures only with iOS-style cards."
+  "version": "8.6.10",
+  "message": "Pulse 8.6.10 restores the stable app and fixes profile edit / password reset startup issues."
 }
