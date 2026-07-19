@@ -1,4 +1,4 @@
 {
   "version": "8.6.8",
-  "message": "Pulse 8.6.8 fixes inline profile editing startup errors and forgot password handling."
+  "message": "Pulse 8.6.8 fixes startup null bindings and profile editor wiring."
 }
