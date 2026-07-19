@@ -92,3 +92,29 @@ html.pulse-auth-pending .authSplash{display:flex!important}
 .profilePhotoEdit{margin:2px 0 4px;justify-items:center;text-align:center}
 .profilePhotoEdit span{width:90px;height:90px}
 .profilePhotoEdit b{margin-top:4px}
+
+.profileSetupCard{display:grid;gap:14px}
+.profileSetupHeader{display:flex;align-items:center;gap:12px;text-align:left}
+.profileSetupHeader .avatar{width:72px;height:72px;flex:0 0 auto}
+.profileSetupHeader b{display:block;font-size:16px}
+.profileSetupHeader small{color:var(--muted);margin-top:4px}
+.avatarGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.avatarChoice{padding:0;border:0;background:transparent;display:grid;gap:6px;justify-items:center;color:#fff}
+.avatarChoice img{width:100%;aspect-ratio:1;border-radius:50%;display:block;object-fit:cover;border:2px solid transparent;box-shadow:0 0 0 1px rgba(255,255,255,.05)}
+.avatarChoice span{font-size:11px;color:var(--muted)}
+.avatarChoice.selected img{border-color:var(--accent);box-shadow:0 0 0 2px rgba(37,211,102,.18)}
+.profileCard{display:grid;gap:10px}
+.profileCardTitle{align-items:center;margin-bottom:0}
+.profileView{display:block}
+.profileTop{display:flex;gap:12px;align-items:center}
+.profileAvatar{width:64px;height:64px;flex:0 0 auto}
+.profileMeta b{display:block;font-size:18px;margin-bottom:4px}
+.profileMeta p{margin:0 0 3px;color:var(--muted);line-height:1.45}
+.profileEditPanel{display:grid;gap:10px}
+.profileEditActions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settingButton.secondary{background:var(--panel2);color:#fff}
+.profileEditHint{color:var(--muted)}
+@media(max-width:480px){
+  .avatarGrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .profileSetupHeader{align-items:flex-start}
+}
