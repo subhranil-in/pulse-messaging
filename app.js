@@ -133,6 +133,13 @@ function setAvatarPreview(el, key, label) {
   el.append(img);
 }
 
+
+function toggleAvatarPicker(id){
+ const el=$(id);
+ if(!el) return;
+ el.style.display=(el.style.display==="none"||!el.style.display)?"grid":"none";
+}
+
 function renderAvatarPicker(containerId, selectedKey, onPick) {
   const el = $(containerId);
   if (!el) return;
@@ -1008,12 +1015,8 @@ function showHomeView() {
   if (me && $("homeAvatar")) setAvatar($("homeAvatar"), me);
 }
 
-bind("profileSelectedAvatarBtn", "click", () => {
-  if ($("profileAvatarPicker")) $("profileAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
-});
-bind("settingsSelectedAvatarBtn", "click", () => {
-  if ($("settingsAvatarPicker")) $("settingsAvatarPicker").scrollIntoView({ behavior: "smooth", block: "center" });
-});
+bind("profileSelectedAvatarBtn","click",()=>toggleAvatarPicker("profileAvatarPicker"));
+bind("settingsSelectedAvatarBtn","click",()=>toggleAvatarPicker("settingsAvatarPicker"));
 
 (async () => {
   await checkForUpdates(false);
