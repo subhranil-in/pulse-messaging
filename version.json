@@ -1,4 +1,4 @@
 {
-  "version": "8.8.0",
-  "message": "Pulse 8.8.0 adds Calls tab, call history, favorites, search, and dialer features."
+  "version": "8.8.1",
+  "message": "Pulse 8.8.1 rebuilds the Calls package and busts stale service-worker cache."
 }
