@@ -1,4 +1,4 @@
 {
-  "version": "8.8.1",
-  "message": "Pulse 8.8.1 rebuilds the Calls package and busts stale service-worker cache."
+  "version": "8.7.0",
+  "message": "Pulse 8.7.0 adds one-to-one voice calls with WebRTC and Firestore signaling."
 }
