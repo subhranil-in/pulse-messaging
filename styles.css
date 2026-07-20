@@ -103,3 +103,42 @@ html.pulse-auth-pending .authSplash{display:flex!important}
 .callButtons{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .callButtons .primaryAction,.callButtons .secondaryAction{margin-top:0}
 .callButtons .danger{background:rgba(255,69,58,.16);color:#ff6961}
+
+
+.callsPanelBody{display:grid;gap:14px;padding:14px 0 32px;overflow:auto;height:calc(100dvh - 110px)}
+.callsPanelBody .settingCard{width:min(760px,calc(100vw - 20px));margin:0 auto}
+.callSearchBar{display:grid;grid-template-columns:1fr auto;gap:10px;padding:0 10px}
+.contactStrip{display:flex;gap:10px;overflow:auto;padding-top:2px}
+.contactChip{min-width:88px;max-width:88px;display:grid;gap:7px;place-items:center;text-align:center;padding:10px 8px;border:1px solid rgba(255,255,255,.08);border-radius:18px;background:#202023}
+.contactChip b{font-size:12px;line-height:1.2;max-height:2.4em;overflow:hidden}
+.contactChip small{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+.contactChip .avatar{width:52px;height:52px}
+.callHistoryItem{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.callHistoryItem:first-child{border-top:0}
+.callHistoryMeta{flex:1;min-width:0}
+.callHistoryMeta b{display:block;font-size:15px;margin-bottom:3px}
+.callHistoryMeta small{display:block;color:var(--muted)}
+.callTypeIcon{width:38px;height:38px;border-radius:50%;background:#202023;display:grid;place-items:center;color:var(--iosBlue);font-weight:900}
+.callActions{display:flex;gap:8px}
+.callBadge{display:inline-block;padding:3px 7px;border-radius:999px;font-size:11px;font-weight:800;margin-top:4px}
+.callBadge.missed{background:rgba(255,69,58,.12);color:#ff6961}
+.callBadge.outgoing{background:rgba(10,132,255,.12);color:#64a9ff}
+.callBadge.incoming{background:rgba(48,209,88,.12);color:#5ad58b}
+.callBadge.ended{background:rgba(255,255,255,.08);color:#ddd}
+.ongoingCallBanner{display:flex;align-items:center;gap:10px;margin:0 10px;padding:12px 14px;border-radius:18px;background:rgba(10,132,255,.12);border:1px solid rgba(10,132,255,.2)}
+.ongoingCallBanner .copy b{font-size:14px}
+.ongoingCallBanner .copy small{color:#c7ddff}
+.dialPad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 0}
+.dialPad button{height:58px;border:0;border-radius:16px;background:#2c2c2e;color:#fff;font-size:22px;font-weight:800}
+.dialerActions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dialerSheet input{font-size:18px;text-align:center;letter-spacing:1px}
+.callsPanelBody h3{margin:0 10px}
+.miniAction{border:0;background:rgba(10,132,255,.13);color:#64a9ff;padding:7px 10px;border-radius:10px;font-weight:700}
+
+.callSheet .callAvatar{width:100px;height:100px;margin:0 auto 10px}
+.callSheet h2{text-align:center;margin:0 0 4px}
+.callTimer{text-align:center;font-size:34px;font-weight:900;letter-spacing:-1px;margin:8px 0 10px;color:#fff}
+.callButtons{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.callButtons button{width:100%}
+.callButtons .danger{background:rgba(255,69,58,.16);color:#ff6961}
+#callOverlay .iosSheet,#incomingCallOverlay .iosSheet{padding-bottom:18px}

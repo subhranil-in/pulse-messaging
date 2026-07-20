@@ -1,4 +1,4 @@
 {
-  "version": "8.7.0",
-  "message": "Pulse 8.7.0 adds one-to-one voice calls with WebRTC and Firestore signaling."
+  "version": "8.8.0",
+  "message": "Pulse 8.8.0 adds Calls tab, call history, favorites, search, and dialer features."
 }
