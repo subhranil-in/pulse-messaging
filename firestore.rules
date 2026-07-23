@@ -13,5 +13,14 @@ service cloud.firestore {
    match /readState/{uid}{allow read,create,update:if member(chatId);allow delete:if false;}
    match /typing/{uid}{allow read:if member(chatId);allow create,update:if member(chatId)&&request.auth.uid==uid;allow delete:if false;}
   }
+  function callMember(callId){return signed()&&(request.auth.uid==get(/databases/$(database)/documents/calls/$(callId)).data.callerId||request.auth.uid==get(/databases/$(database)/documents/calls/$(callId)).data.receiverId);}
+  match /calls/{callId}{
+   allow read:if signed()&&(resource.data.callerId==request.auth.uid||resource.data.receiverId==request.auth.uid);
+   allow create:if signed()&&request.resource.data.callerId==request.auth.uid&&request.resource.data.receiverId is string;
+   allow update:if signed()&&(resource.data.callerId==request.auth.uid||resource.data.receiverId==request.auth.uid);
+   allow delete:if false;
+   match /callerCandidates/{id}{allow read,create:if callMember(callId);allow update,delete:if false;}
+   match /receiverCandidates/{id}{allow read,create:if callMember(callId);allow update,delete:if false;}
+  }
  }
 }
