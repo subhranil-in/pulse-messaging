@@ -1,4 +1,4 @@
 {
-  "version": "8.7.0",
-  "message": "Pulse 8.7.0 adds one-to-one voice calls with WebRTC and Firestore signaling."
+  "version": "8.6.10",
+  "message": "Pulse 8.6.10 restores the stable app and fixes profile edit / password reset startup issues."
 }
