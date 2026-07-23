@@ -1,13 +1,31 @@
-# Pulse v8.6.7 BETA
+# Pulse Admin Dashboard
 
-Adds profile editing:
-- Edit Username
-- Edit About
+Standalone admin dashboard for Pulse Messaging.
 
-Where to edit:
-Settings → Profile
+## What it does
+- Firebase Email/Password sign-in
+- Firestore admin role check
+- User analytics
+- Active users list
+- Storage usage
+- Broadcast messages
+- Moderation actions
+- Admin logs
 
-Changes are saved to Firebase, cached locally, and reflected in the app UI.
+## Files
+- `admin/index.html` — dashboard entry
+- `admin/admin.js` — Firebase + Firestore logic
+- `admin/admin.css` — dashboard styles
+- `admin/admin.html` — redirect to `index.html`
 
-Version: 8.6.1
-Service-worker cache: v29
+## Firebase
+This dashboard uses the same Firebase project as your main app.
+
+It checks:
+- `users/{uid}.role === "admin"`
+- `users/{uid}.isAdmin === true`
+- `users/{uid}.admin === true`
+- fallback: `admins/{uid}` document exists
+
+## GitHub Pages
+For `/admin/` to work, the folder must contain `index.html`.
