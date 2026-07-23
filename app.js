@@ -6,7 +6,7 @@ const SUPABASE_URL="https://zztixezukwatipngsyrh.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_3bQXKTqD_qOG2D_6Hzv-KQ_RI_dLSct";
 const TEMP_BUCKET="pulse-temp-files";
 const MAX_FILE_BYTES=25*1024*1024;
-const PULSE_VERSION="8.6.10";
+const PULSE_VERSION="8.7.0";
 const supabase=createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{accessToken:async()=>auth?.currentUser?await auth.currentUser.getIdToken():null});
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app),$=x=>document.getElementById(x);let user,me,peer,cid,uc,um,up,ut,us,timer,reply=null,dbLocal=null,currentMessages=[],chatItems=[],currentStatus=null;
 let chatSelectionMode=false,selectedChats=new Set(),lastMessageRenderSignature="";let activeMessage=null,profilePhotoData="";let activeCall=null,incomingCall=null,incomingCallUnsub=null,callTimerHandle=null,callStartedAt=0;
